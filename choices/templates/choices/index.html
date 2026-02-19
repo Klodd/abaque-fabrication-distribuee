@@ -1,246 +1,105 @@
 {% extends "choices/base.html" %}
 
 {% block content %}
-  <!-- Header -->
-  <div class="app-header">
-    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-      <h1 class="text-slate-100">⚙️ Abaque de la Fabrication Distribuée</h1>
-      <div class="flex items-center gap-6">
-        <span class="text-slate-300">Logged in as: <strong class="text-blue-400">{{ user.username }}</strong></span>
-        <a href="/logout/" class="btn btn-secondary btn-small">Logout</a>
+  <div style="position: absolute; top: 10px; right: 10px;">
+    <span>Logged in as: <strong>{{ user.username }}</strong></span>
+    <a href="/logout/" style="margin-left: 10px; color: #667eea; text-decoration: none;">Logout</a>
+  </div>
+  <h1>Abaque de la fabrication distribuée</h1>
+  <div id="choices-list">
+    {% for g in groups %}
+      {% if g.name == "Machine" %}
+          <hr>
+      {% endif%}
+      <div class="group" style="margin:12px 0;">
+        <label><strong>{{ g.name }}</strong></label>
+        <form class="choice-form" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
+          {% csrf_token %}
+          <input type="hidden" name="group" value="{{ g.id }}">
+          <select name="value">
+            {% for opt in g.options %}
+              {% if opt.name %}
+                <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
+                  {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
+                >{{ opt.name }}</option>
+              {% else %}
+                <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
+              {% endif %}
+            {% endfor %}
+          </select>
+        </form>
+        <div style="display:inline-block;margin-left:8px;"><button class="edit-options" data-group-id="{{ g.id }}">Edit options</button></div>
+        <div id="details-{{ g.id }}" class="choice-details" style="font-size:0.9em;color:#444;margin-left:6px;margin-top:4px;"></div>
       </div>
-    </div>
+    {% endfor %}
   </div>
 
-  <!-- Main Content -->
-  <div class="max-w-7xl mx-auto px-6 py-8">
-    <!-- Choice Groups Section -->
-    <div class="mb-8">
-      <h2 class="text-slate-200 mb-6 flex items-center gap-2">
-        <span class="text-blue-400">📋</span> Configuration
-      </h2>
-      <div id="choices-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {% for g in groups %}
-          {% if g.name == "Machine" %}
-            <div class="col-span-full section-divider"></div>
-          {% endif %}
-          <div class="choice-group glow-blue animate-fade-in">
-            <label class="choice-group-label">{{ g.name }}</label>
-            <form class="choice-form space-y-3" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
-              {% csrf_token %}
-              <input type="hidden" name="group" value="{{ g.id }}">
-              <div class="flex gap-3 items-start">
-                <select name="value" class="choice-select flex-1">
-                  {% for opt in g.options %}
-                    {% if opt.name %}
-                      <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
-                        {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
-                      >{{ opt.name }}</option>
-                    {% else %}
-                      <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
-                    {% endif %}
-                  {% endfor %}
-                </select>
-                <button type="button" class="edit-options btn btn-secondary btn-small" data-group-id="{{ g.id }}">✏️</button>
-              </div>
-            </form>
-            <div id="details-{{ g.id }}" class="choice-details text-xs mt-3 p-3 bg-slate-700/30 rounded border border-slate-700/50"></div>
-          </div>
-        {% endfor %}
+  <div>
+    <table id="data-table" border="1" style="border-collapse:collapse;margin-top:8px;">
+      <thead>
+        <tr><th></th><th>Quantité consommée <br> <em>g / m2 / ml</em></th><th>Temps machine <br> <em>minutes</em></th><th>Temps supplémentaire pour cette opération <br> (mise en place plaque / autres) <br> <em>minutes</em></th><th></th></tr>
+      </thead>
+      <tbody>
+        <!-- start with one empty row -->
+        <tr>
+          <td class="ln"></td>
+          <td><input class="col-qty" value="0.4"/></td>
+          <td><input class="col-tps" value="20"/></td>
+          <td><input class="col-sup" value="10"/></td>
+          <td><button class="del-row">Supprimer la ligne</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <button id="add-row">Ajouter une ligne</button>
+
+    <div style="margin-top:12px;">
+      <label for="number-of-copies">Nombre d'exemplaires :</label>
+      <input type="number" id="number-of-copies" value="1" min="1" style="width: 80px; padding: 4px;" />
+    </div>
+
+    <div style="margin-top:12px;">
+      <strong>Résumé matière</strong>
+      <div style="margin-top:6px; border: 1px solid #ddd; padding: 8px;">
+        <div>Quantité de matière consommée : <strong id="total-material">0</strong></div>
       </div>
     </div>
 
-    <!-- Data Entry Section -->
-    <div class="mb-8">
-      <h2 class="text-slate-200 mb-6 flex items-center gap-2">
-        <span class="text-blue-400">📊</span> Data Entry
-      </h2>
-      <div class="card glow-blue">
-        <table id="data-table" class="data-table">
-          <thead class="table-header">
-            <tr>
-              <th class="table-header-cell">#</th>
-              <th class="table-header-cell">Quantity<br><span class="text-xs text-slate-400 font-normal">(g / m² / ml)</span></th>
-              <th class="table-header-cell">Machine Time<br><span class="text-xs text-slate-400 font-normal">(minutes)</span></th>
-              <th class="table-header-cell">Additional Time<br><span class="text-xs text-slate-400 font-normal">(minutes)</span></th>
-              <th class="table-header-cell">Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="table-row">
-              <td class="table-cell table-row-number ln">1</td>
-              <td class="table-cell"><input class="col-qty input-number" value="0.4"/></td>
-              <td class="table-cell"><input class="col-tps input-number" value="20"/></td>
-              <td class="table-cell"><input class="col-sup input-number" value="10"/></td>
-              <td class="table-cell"><button class="del-row btn btn-danger btn-small">Delete</button></td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="mt-4 flex gap-3">
-          <button id="add-row" class="btn btn-primary">+ Add Row</button>
-        </div>
+    <div style="margin-top:12px;">
+      <strong>Résumé temps</strong>
+      <div style="margin-top:6px; border: 1px solid #ddd; padding: 8px;">
+        <div>Temps de machine total : <strong id="total-tps">0</strong> minutes</div>
+        <div style="margin-top:6px;">Temps opérateur additionnel: <strong id="total-additional-time">0</strong> minutes</div>
+        <div style="margin-top:6px;">Temps opérateur total : <strong id="total-operator-time">0</strong> minutes, dont <strong id="time-summary-pourcent-temps">0</strong>% du temps de fonctionnement de la machine <strong id="time-summary-machine-name"></strong></div>
       </div>
     </div>
 
-    <!-- Number of Copies Section -->
-    <div class="mb-8">
-      <div class="card">
-        <label for="number-of-copies" class="block text-blue-300 font-semibold mb-3">Nombre d'exemplaires</label>
-        <input type="number" id="number-of-copies" value="1" min="1" class="input-number" />
+    <div style="margin-top:12px;">
+      <strong>Calcul coût brut</strong>
+      <div style="margin-top:6px; border: 1px solid #ddd; padding: 8px;">
+        <div>Coût total matière : <strong id="cost-summary-total-material-cost">0</strong>€ au prix unitaire de <strong id="cost-summary-material-cost">0</strong>€ de <strong id="cost-summary-material-name"></strong></div>
+        <div>Coût location machine : <strong id="cost-summary-total-machine-cost">0</strong>€ au prix unitaire de <strong id="cost-summary-machine-cost">0</strong>€ <strong id="cost-summary-is-adherent"></strong> de <strong id="cost-summary-machine-name"></strong></div>
+        <div>Coût consommable : <strong id="cost-summary-consommable-cost">0</strong>€</div>
+        <div>Coût logiciel : <strong id="cost-summary-software-cost">0</strong>€</div>
+        <div>Coût humain : <strong id="cost-summary-human-cost">0</strong>€ au tarif horaire de <strong id="cost-summary-human-hourly-price">0</strong>€/heure</div>
+        <div>Majoration de la main d'oeuvre pour urgence : <strong id="cost-summary-majoration-cost">0</strong>€ au lieu de <strong id="cost-summary-before-majoration-human-cost">0</strong>€</div>
+        <div>Coût licence : <strong id="cost-summary-license-cost">0</strong>€</div>
+        <div>Contribution au projet associatif : <strong id="cost-summary-asso-contribution">0</strong>€</div>
+        
+        <div><strong>Total unitaire:</strong> <strong id="cost-summary-final-cost-unit">0</strong></div>
+        <div><strong>Total général:</strong> <strong id="cost-summary-final-cost">0</strong></div>
+
       </div>
     </div>
 
-    <!-- Summaries Section -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <!-- Material Summary -->
-      <div class="summary-section glow-green">
-        <div class="summary-title">
-          <span>🧪</span> Material
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Total Quantity</span>
-          <span class="summary-value"><strong id="total-material">0</strong></span>
-        </div>
+
+    <div style="margin-top:12px;">
+      <div style="margin-top:8px;">
+        <input id="save-name" placeholder="Save name (optional)" style="width:30%" />
+        <button id="save-job">Save</button>
       </div>
-
-      <!-- Time Summary -->
-      <div class="summary-section">
-        <div class="summary-title">
-          <span>⏱️</span> Time
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Machine Time</span>
-          <span class="summary-value"><strong id="total-tps">0</strong> min</span>
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Additional Time</span>
-          <span class="summary-value"><strong id="total-additional-time">0</strong> min</span>
-        </div>
-        <div class="summary-item border-t border-slate-600 pt-3 mt-3">
-          <span class="summary-label">Operator Total</span>
-          <span class="summary-value"><strong id="total-operator-time">0</strong> min</span>
-        </div>
-        <div class="text-xs text-slate-400 mt-2 p-2 bg-slate-700/30 rounded">
-          <strong id="time-summary-pourcent-temps">0</strong>% from <strong id="time-summary-machine-name"></strong>
-        </div>
-      </div>
-
-      <!-- Final Cost Summary -->
-      <div class="summary-section glow-blue">
-        <div class="summary-title">
-          <span>💰</span> Cost
-        </div>
-        <div class="summary-item">
-          <span class="summary-label">Unit Cost</span>
-          <span class="summary-price"><strong id="cost-summary-final-cost-unit">0</strong>€</span>
-        </div>
-        <div class="summary-item border-t border-slate-600 pt-3 mt-3 summary-final">
-          <span class="summary-label">Total Cost</span>
-          <span class="summary-price text-xl"><strong id="cost-summary-final-cost">0</strong>€</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Detailed Cost Breakdown -->
-    <div class="mb-8">
-      <h2 class="text-slate-200 mb-4 flex items-center gap-2">
-        <span class="text-blue-400">📈</span> Cost Breakdown
-      </h2>
-      <div class="summary-section">
-        <div class="space-y-3">
-          <div class="summary-item">
-            <span class="summary-label">Material Cost</span>
-            <span class="summary-value"><strong id="cost-summary-total-material-cost">0</strong>€</span>
-          </div>
-          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
-            @ <strong id="cost-summary-material-cost">0</strong>€ per unit of <strong id="cost-summary-material-name">-</strong>
-          </div>
-
-          <div class="summary-item mt-4">
-            <span class="summary-label">Machine Rental</span>
-            <span class="summary-value"><strong id="cost-summary-total-machine-cost">0</strong>€</span>
-          </div>
-          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
-            @ <strong id="cost-summary-machine-cost">0</strong>€ <strong id="cost-summary-is-adherent"></strong> of <strong id="cost-summary-machine-name"></strong>
-          </div>
-
-          <div class="summary-item mt-4">
-            <span class="summary-label">Consumables</span>
-            <span class="summary-value"><strong id="cost-summary-consommable-cost">0</strong>€</span>
-          </div>
-
-          <div class="summary-item">
-            <span class="summary-label">Software</span>
-            <span class="summary-value"><strong id="cost-summary-software-cost">0</strong>€</span>
-          </div>
-
-          <div class="summary-item">
-            <span class="summary-label">Labor</span>
-            <span class="summary-value"><strong id="cost-summary-human-cost">0</strong>€</span>
-          </div>
-          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
-            @ <strong id="cost-summary-human-hourly-price">0</strong>€/hour
-          </div>
-
-          <div class="summary-item mt-4">
-            <span class="summary-label">Urgency Multiplier</span>
-            <span class="summary-value"><strong id="cost-summary-majoration-cost">0</strong>€</span>
-          </div>
-          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
-            (before: <strong id="cost-summary-before-majoration-human-cost">0</strong>€)
-          </div>
-
-          <div class="summary-item mt-4">
-            <span class="summary-label">License Fee</span>
-            <span class="summary-value"><strong id="cost-summary-license-cost">0</strong>€</span>
-          </div>
-
-          <div class="summary-item">
-            <span class="summary-label">Asso Contribution</span>
-            <span class="summary-value"><strong id="cost-summary-asso-contribution">0</strong>€</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Save and Load Jobs Section -->
-    <div class="mb-8">
-      <h2 class="text-slate-200 mb-6 flex items-center gap-2">
-        <span class="text-blue-400">💾</span> Job Management
-      </h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <!-- Save New Job -->
-        <div class="card">
-          <h3 class="text-slate-100 font-semibold mb-4">Save Current Job</h3>
-          <div class="space-y-3">
-            <input id="save-name" type="text" placeholder="Job name (optional)" class="input-field w-full" />
-            <button id="save-job" class="btn btn-primary w-full">Save Job</button>
-          </div>
-        </div>
-
-        <!-- Saved Jobs List -->
-        <div class="md:col-span-2 card">
-          <h3 class="text-slate-100 font-semibold mb-4">Saved Jobs</h3>
-          <div id="saved-list" class="space-y-2 max-h-96 overflow-y-auto">
-            <div class="text-slate-400 text-center py-8">Loading jobs...</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal for Editing Options -->
-  <div id="edit-modal" class="hidden modal-overlay" style="display:none;">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3 class="modal-title">Edit Options</h3>
-      </div>
-      <div class="modal-body">
-        <div id="edit-modal-content"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
-        <button class="btn btn-primary" onclick="saveEditOptions()">Save Changes</button>
+      <div style="margin-top:8px;">
+        <strong>Saved Jobs</strong>
+        <div id="saved-list" style="margin-top:6px;border:1px solid #ddd;padding:8px;max-width:60%"></div>
       </div>
     </div>
   </div>
@@ -376,20 +235,24 @@
 
     // --- Modal editor with API persistence ---
     let modalState = { groupId: null, keys: [] };
-    const modal = document.getElementById('edit-modal');
-    const modalContent = document.getElementById('edit-modal-content');
-    
-    function closeEditModal() {
-      modal.style.display = 'none';
-      modalState = { groupId: null, keys: [] };
-    }
-    
-    function showEditModal() {
-      modal.style.display = 'flex';
-    }
-    
-    window.closeEditModal = closeEditModal;
-    window.saveEditOptions = saveEditOptions;
+    const modal = document.createElement('div');
+    modal.id = 'options-modal';
+    modal.style.display = 'none';
+    modal.style.position = 'fixed';
+    modal.style.left = 0;
+    modal.style.top = 0;
+    modal.style.right = 0;
+    modal.style.bottom = 0;
+    modal.style.background = 'rgba(0,0,0,0.4)';
+    modal.style.zIndex = 9999;
+    modal.innerHTML = `
+      <div style="position:relative;width:90%;max-width:900px;margin:40px auto;background:#fff;padding:16px;border-radius:6px;">
+        <h3 id="modal-title">Edit Options</h3>
+        <div style="margin-bottom:8px;"><label>Add property: <input id="modal-new-prop" placeholder="property_name"/> <button id="modal-add-prop">Add</button></label></div>
+        <div id="modal-rows" style="max-height:50vh;overflow:auto;border:1px solid #eee;padding:8px;margin-bottom:8px;"></div>
+        <div style="text-align:right;"><button id="modal-save">Save</button> <button id="modal-cancel">Cancel</button></div>
+      </div>`;
+    document.body.appendChild(modal);
 
     async function openOptionsModal(gid) {
       modalState.groupId = String(gid);
@@ -398,70 +261,47 @@
       const keys = unionKeysGeneric(opts);
       modalState.keys = keys;
       renderModal(opts, keys, form);
-      showEditModal();
+      modal.style.display = 'block';
+    }
+
+    function closeModal() {
+      modal.style.display = 'none';
+      modalState = { groupId: null, keys: [] };
     }
 
     function renderModal(opts, keys, form) {
-      const titleEl = modal.querySelector('.modal-title');
-      if (titleEl) {
-        titleEl.textContent = 'Edit options for ' + (form ? form.dataset.groupName : modalState.groupId);
-      }
-      
-      const rowsWrap = modalContent;
+      document.getElementById('modal-title').textContent = 'Edit options for ' + (form ? form.dataset.groupName : modalState.groupId);
+      const rowsWrap = document.getElementById('modal-rows');
       rowsWrap.innerHTML = '';
-      
-      // Add property section
-      const addSection = document.createElement('div');
-      addSection.className = 'mb-4 p-3 bg-slate-700/30 rounded';
-      const addLabel = document.createElement('label');
-      addLabel.className = 'flex items-center gap-2';
-      const addInput = document.createElement('input');
-      addInput.id = 'modal-new-prop';
-      addInput.className = 'input-field flex-1';
-      addInput.placeholder = 'property_name';
-      const addBtn = document.createElement('button');
-      addBtn.id = 'modal-add-prop';
-      addBtn.className = 'btn btn-secondary';
-      addBtn.textContent = 'Add Property';
-      addLabel.appendChild(addInput);
-      addLabel.appendChild(addBtn);
-      addSection.appendChild(addLabel);
-      rowsWrap.appendChild(addSection);
-      
-      // Header
       const header = document.createElement('div');
-      header.className = 'flex gap-2 font-bold mb-3 p-3 bg-slate-700/50 rounded';
+      header.style.display = 'flex';
+      header.style.fontWeight = 'bold';
+      header.style.gap = '6px';
       const hn = document.createElement('div');
       hn.textContent = 'Name';
-      hn.className = 'flex-1';
+      hn.style.flex = '1';
       header.appendChild(hn);
       keys.forEach(k => {
         const hk = document.createElement('div');
-        hk.className = 'flex-1';
-        const span = document.createElement('span');
-        span.textContent = prettyKey(k);
-        hk.appendChild(span);
+        hk.textContent = prettyKey(k);
+        hk.style.flex = '1';
         const rm = document.createElement('button');
-        rm.textContent = '✕';
-        rm.className = 'ml-2 text-red-400 hover:text-red-300 text-sm';
+        rm.textContent = '×';
         rm.title = 'Remove property';
+        rm.style.marginLeft = '6px';
         rm.addEventListener('click', () => {
           removePropertyKey(k);
         });
         hk.appendChild(rm);
         header.appendChild(hk);
       });
+      header.appendChild(document.createElement('div'));
       rowsWrap.appendChild(header);
-      
-      // Options rows
       (opts || []).forEach(o => rowsWrap.appendChild(buildModalRow(o, keys)));
-      
-      // Add button
       const foot = document.createElement('div');
-      foot.className = 'mt-4';
+      foot.style.marginTop = '8px';
       const addRowBtn = document.createElement('button');
-      addRowBtn.className = 'btn btn-primary';
-      addRowBtn.textContent = '+ Add option';
+      addRowBtn.textContent = 'Add option';
       addRowBtn.addEventListener('click', () => {
         rowsWrap.appendChild(buildModalRow({}, modalState.keys));
       });
@@ -471,26 +311,23 @@
 
     function buildModalRow(opt, keys) {
       const row = document.createElement('div');
-      row.className = 'flex gap-2 mb-3 p-3 bg-slate-700/20 rounded items-center';
-      row.setAttribute('data-row', 'option');
-      
+      row.style.display = 'flex';
+      row.style.gap = '6px';
+      row.style.marginTop = '6px';
       const inpName = document.createElement('input');
-      inpName.className = 'input-field flex-1';
       inpName.placeholder = 'Name';
+      inpName.style.flex = '1';
       inpName.value = opt && opt.name ? opt.name : '';
       row.appendChild(inpName);
-      
       keys.forEach(k => {
         const inp = document.createElement('input');
-        inp.className = 'input-field flex-1';
         inp.placeholder = prettyKey(k);
+        inp.style.flex = '1';
         inp.value = opt && opt[k] !== undefined ? String(opt[k]) : '';
         inp.dataset.key = k;
         row.appendChild(inp);
       });
-      
       const del = document.createElement('button');
-      del.className = 'btn btn-danger btn-small';
       del.textContent = 'Delete';
       del.addEventListener('click', e => {
         e.preventDefault();
@@ -502,8 +339,10 @@
 
     function removePropertyKey(key) {
       modalState.keys = modalState.keys.filter(k => k !== key);
-      const rows = Array.from(modalContent.querySelectorAll('div[data-row="option"]')).map(r => {
-        const name = r.querySelector('input:first-child').value;
+      const rowsWrap = document.getElementById('modal-rows');
+      const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0);
+      const current = rows.map(r => {
+        const name = r.querySelector('input[placeholder="Name"]').value;
         const obj = { name };
         modalState.keys.forEach(k => {
           const inp = r.querySelector(`input[data-key="${k}"]`);
@@ -512,7 +351,7 @@
         return obj;
       });
       const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
-      renderModal(rows, modalState.keys, form);
+      renderModal(current, modalState.keys, form);
     }
 
     function unionKeysGeneric(opts) {
@@ -533,23 +372,14 @@
       return isNaN(n) ? v : n;
     }
 
-    // Set up modal event listeners
-    function initializeModalListeners() {
-      const addPropBtn = modalContent.querySelector('#modal-add-prop');
-      if (addPropBtn) {
-        addPropBtn.removeEventListener('click', onAddProperty);
-        addPropBtn.addEventListener('click', onAddProperty);
-      }
-    }
-
-    async function onAddProperty() {
-      const input = modalContent.querySelector('#modal-new-prop');
-      const v = input.value.trim();
+    document.getElementById('modal-add-prop').addEventListener('click', async () => {
+      const v = document.getElementById('modal-new-prop').value.trim();
       if (!v) return alert('Enter property name');
       if (modalState.keys.includes(v)) return alert('Property already present');
       modalState.keys.push(v);
-      const rows = Array.from(modalContent.querySelectorAll('div[data-row="option"]')).map(r => {
-        const name = r.querySelector('input:first-child').value;
+      const rowsWrap = document.getElementById('modal-rows');
+      const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0).map(r => {
+        const name = r.querySelector('input[placeholder="Name"]').value;
         const obj = { name };
         modalState.keys.forEach(k => {
           const inp = r.querySelector(`input[data-key="${k}"]`);
@@ -559,14 +389,18 @@
       });
       const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
       renderModal(rows, modalState.keys, form);
-      input.value = '';
-      setTimeout(initializeModalListeners, 0);
-    }
-    
-    async function saveEditOptions() {
-      const rows = Array.from(modalContent.querySelectorAll('div[data-row="option"]'));
+      document.getElementById('modal-new-prop').value = '';
+    });
+
+    document.getElementById('modal-cancel').addEventListener('click', () => {
+      closeModal();
+    });
+
+    document.getElementById('modal-save').addEventListener('click', async () => {
+      const rowsWrap = document.getElementById('modal-rows');
+      const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0);
       const parsed = rows.map(r => {
-        const name = r.querySelector('input:first-child').value.trim();
+        const name = r.querySelector('input[placeholder="Name"]').value.trim();
         const obj = { name };
         modalState.keys.forEach(k => {
           const inp = r.querySelector(`input[data-key="${k}"]`);
@@ -585,12 +419,12 @@
       if (success) {
         const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
         populateSelectFromOptions(form, parsed);
-        closeEditModal();
+        closeModal();
         alert('Options saved');
       } else {
         alert('Error saving options');
       }
-    }
+    });
 
     document.querySelectorAll('.edit-options').forEach(b => b.addEventListener('click', (e) => {
       openOptionsModal(b.dataset.groupId);
@@ -602,52 +436,40 @@
       const jobs = await loadSavedJobs();
       if (!wrap) return;
       if (jobs.length === 0) {
-        wrap.innerHTML = '<div class="text-center text-slate-400 py-8">No saved jobs yet</div>';
+        wrap.innerHTML = '<div style="color:#666">No saved jobs</div>';
         return;
       }
       wrap.innerHTML = '';
       jobs.slice().reverse().forEach(j => {
         const el = document.createElement('div');
-        el.className = 'job-item';
-        
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'space-between';
+        el.style.marginBottom = '6px';
         const left = document.createElement('div');
-        left.className = 'flex-1';
-        const jobName = document.createElement('div');
-        jobName.className = 'job-name';
-        jobName.textContent = j.name || 'Unnamed Job';
-        const jobTime = document.createElement('div');
-        jobTime.className = 'job-time';
-        jobTime.textContent = new Date(j.created_at).toLocaleString();
-        left.appendChild(jobName);
-        left.appendChild(jobTime);
-        
+        left.textContent = j.name + ' — ' + new Date(j.created_at).toLocaleString();
+        left.style.flex = '1';
         const btns = document.createElement('div');
-        btns.className = 'job-actions';
-        
         const load = document.createElement('button');
-        load.className = 'btn btn-secondary btn-small';
-        load.textContent = '📥 Load';
+        load.textContent = 'Load';
         load.addEventListener('click', () => {
           applyState(j.state_json);
           serializeStateToUI();
           updateAllDetailsAndSummary();
         });
-        
         const del = document.createElement('button');
-        del.className = 'btn btn-danger btn-small';
-        del.textContent = '🗑️ Delete';
+        del.textContent = 'Delete';
+        del.style.marginLeft = '6px';
         del.addEventListener('click', async () => {
           const ok = await deleteJob(j.id);
           if (ok) populateSavedList();
         });
-        
         const exp = document.createElement('button');
-        exp.className = 'btn btn-secondary btn-small';
-        exp.textContent = '⬇️ Export';
+        exp.textContent = 'Export';
+        exp.style.marginLeft = '6px';
         exp.addEventListener('click', () => {
           exportJobs([j]);
         });
-        
         btns.appendChild(load);
         btns.appendChild(del);
         btns.appendChild(exp);
@@ -895,40 +717,17 @@
         properties.push({ key: prettyKey(k), value: v });
       }
       
-      // Build table HTML with styled classes
-      detailsEl.innerHTML = '';
-      const table = document.createElement('table');
-      table.className = 'details-table w-full text-xs mt-2';
+      // Build table HTML
+      let html = `<table style="border-collapse: collapse; font-size: 0.85em; margin-top: 6px; width: 100%;">`;
+      html += `<tr style="background-color: #f0f0f0;"><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">Choix</td><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">${optionName}</td></tr>`;
+    //   html += `<tr><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">Selected</td><td style="border: 1px solid #ddd; padding: 4px 6px;">${optionName}</td></tr>`;
       
-      // Header row
-      const headerRow = document.createElement('tr');
-      headerRow.className = 'details-row details-header';
-      const headerCell1 = document.createElement('td');
-      headerCell1.className = 'details-cell';
-      headerCell1.textContent = 'Choix';
-      const headerCell2 = document.createElement('td');
-      headerCell2.className = 'details-cell';
-      headerCell2.textContent = optionName;
-      headerRow.appendChild(headerCell1);
-      headerRow.appendChild(headerCell2);
-      table.appendChild(headerRow);
-      
-      // Property rows
       properties.forEach(prop => {
-        const row = document.createElement('tr');
-        row.className = 'details-row';
-        const labelCell = document.createElement('td');
-        labelCell.className = 'details-cell details-label';
-        labelCell.textContent = prop.key;
-        const valueCell = document.createElement('td');
-        valueCell.className = 'details-cell';
-        valueCell.textContent = prop.value;
-        row.appendChild(labelCell);
-        row.appendChild(valueCell);
-        table.appendChild(row);
+        html += `<tr><td style="border: 1px solid #ddd; padding: 4px 6px;">${prop.key}</td><td style="border: 1px solid #ddd; padding: 4px 6px;">${prop.value}</td></tr>`;
       });
       
-      detailsEl.appendChild(table);
+      html += `</table>`;
+      detailsEl.innerHTML = html;
     }
 
     // State serialization (unchanged)
@@ -987,23 +786,12 @@
       updateSummary();
     });
 
-    // Modal click outside to close
-    const editModal = document.getElementById('edit-modal');
-    if (editModal) {
-      editModal.addEventListener('click', (e) => {
-        if (e.target === editModal) {
-          closeEditModal();
-        }
-      });
-    }
-
     // Initialization on load
     window.addEventListener('load', async () => {
       populateSavedList();
       updateSummary();
       serializeStateToUI();
       document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
-      initializeModalListeners();
     });
   </script>
 {% endblock %}
