@@ -51,6 +51,9 @@
 .max-w-\[1400px\] {
   max-width: 1400px;
 }
+.min-w-full {
+  min-width: 100%;
+}
 .flex-1 {
   flex: 1;
 }
