@@ -1,0 +1,1009 @@
+{% extends "choices/base.html" %}
+
+{% block content %}
+  <!-- Header -->
+  <div class="app-header">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <h1 class="text-slate-100">⚙️ Abaque de la Fabrication Distribuée</h1>
+      <div class="flex items-center gap-6">
+        <span class="text-slate-300">Logged in as: <strong class="text-blue-400">{{ user.username }}</strong></span>
+        <a href="/logout/" class="btn btn-secondary btn-small">Logout</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="max-w-7xl mx-auto px-6 py-8">
+    <!-- Choice Groups Section -->
+    <div class="mb-8">
+      <h2 class="text-slate-200 mb-6 flex items-center gap-2">
+        <span class="text-blue-400">📋</span> Configuration
+      </h2>
+      <div id="choices-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {% for g in groups %}
+          {% if g.name == "Machine" %}
+            <div class="col-span-full section-divider"></div>
+          {% endif %}
+          <div class="choice-group glow-blue animate-fade-in">
+            <label class="choice-group-label">{{ g.name }}</label>
+            <form class="choice-form space-y-3" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
+              {% csrf_token %}
+              <input type="hidden" name="group" value="{{ g.id }}">
+              <div class="flex gap-3 items-start">
+                <select name="value" class="choice-select flex-1">
+                  {% for opt in g.options %}
+                    {% if opt.name %}
+                      <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
+                        {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
+                      >{{ opt.name }}</option>
+                    {% else %}
+                      <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+                <button type="button" class="edit-options btn btn-secondary btn-small" data-group-id="{{ g.id }}">✏️</button>
+              </div>
+            </form>
+            <div id="details-{{ g.id }}" class="choice-details text-xs mt-3 p-3 bg-slate-700/30 rounded border border-slate-700/50"></div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Data Entry Section -->
+    <div class="mb-8">
+      <h2 class="text-slate-200 mb-6 flex items-center gap-2">
+        <span class="text-blue-400">📊</span> Data Entry
+      </h2>
+      <div class="card glow-blue">
+        <table id="data-table" class="data-table">
+          <thead class="table-header">
+            <tr>
+              <th class="table-header-cell">#</th>
+              <th class="table-header-cell">Quantity<br><span class="text-xs text-slate-400 font-normal">(g / m² / ml)</span></th>
+              <th class="table-header-cell">Machine Time<br><span class="text-xs text-slate-400 font-normal">(minutes)</span></th>
+              <th class="table-header-cell">Additional Time<br><span class="text-xs text-slate-400 font-normal">(minutes)</span></th>
+              <th class="table-header-cell">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="table-row">
+              <td class="table-cell table-row-number ln">1</td>
+              <td class="table-cell"><input class="col-qty input-number" value="0.4"/></td>
+              <td class="table-cell"><input class="col-tps input-number" value="20"/></td>
+              <td class="table-cell"><input class="col-sup input-number" value="10"/></td>
+              <td class="table-cell"><button class="del-row btn btn-danger btn-small">Delete</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="mt-4 flex gap-3">
+          <button id="add-row" class="btn btn-primary">+ Add Row</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Number of Copies Section -->
+    <div class="mb-8">
+      <div class="card">
+        <label for="number-of-copies" class="block text-blue-300 font-semibold mb-3">Nombre d'exemplaires</label>
+        <input type="number" id="number-of-copies" value="1" min="1" class="input-number" />
+      </div>
+    </div>
+
+    <!-- Summaries Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Material Summary -->
+      <div class="summary-section glow-green">
+        <div class="summary-title">
+          <span>🧪</span> Material
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Total Quantity</span>
+          <span class="summary-value"><strong id="total-material">0</strong></span>
+        </div>
+      </div>
+
+      <!-- Time Summary -->
+      <div class="summary-section">
+        <div class="summary-title">
+          <span>⏱️</span> Time
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Machine Time</span>
+          <span class="summary-value"><strong id="total-tps">0</strong> min</span>
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Additional Time</span>
+          <span class="summary-value"><strong id="total-additional-time">0</strong> min</span>
+        </div>
+        <div class="summary-item border-t border-slate-600 pt-3 mt-3">
+          <span class="summary-label">Operator Total</span>
+          <span class="summary-value"><strong id="total-operator-time">0</strong> min</span>
+        </div>
+        <div class="text-xs text-slate-400 mt-2 p-2 bg-slate-700/30 rounded">
+          <strong id="time-summary-pourcent-temps">0</strong>% from <strong id="time-summary-machine-name"></strong>
+        </div>
+      </div>
+
+      <!-- Final Cost Summary -->
+      <div class="summary-section glow-blue">
+        <div class="summary-title">
+          <span>💰</span> Cost
+        </div>
+        <div class="summary-item">
+          <span class="summary-label">Unit Cost</span>
+          <span class="summary-price"><strong id="cost-summary-final-cost-unit">0</strong>€</span>
+        </div>
+        <div class="summary-item border-t border-slate-600 pt-3 mt-3 summary-final">
+          <span class="summary-label">Total Cost</span>
+          <span class="summary-price text-xl"><strong id="cost-summary-final-cost">0</strong>€</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Detailed Cost Breakdown -->
+    <div class="mb-8">
+      <h2 class="text-slate-200 mb-4 flex items-center gap-2">
+        <span class="text-blue-400">📈</span> Cost Breakdown
+      </h2>
+      <div class="summary-section">
+        <div class="space-y-3">
+          <div class="summary-item">
+            <span class="summary-label">Material Cost</span>
+            <span class="summary-value"><strong id="cost-summary-total-material-cost">0</strong>€</span>
+          </div>
+          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
+            @ <strong id="cost-summary-material-cost">0</strong>€ per unit of <strong id="cost-summary-material-name">-</strong>
+          </div>
+
+          <div class="summary-item mt-4">
+            <span class="summary-label">Machine Rental</span>
+            <span class="summary-value"><strong id="cost-summary-total-machine-cost">0</strong>€</span>
+          </div>
+          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
+            @ <strong id="cost-summary-machine-cost">0</strong>€ <strong id="cost-summary-is-adherent"></strong> of <strong id="cost-summary-machine-name"></strong>
+          </div>
+
+          <div class="summary-item mt-4">
+            <span class="summary-label">Consumables</span>
+            <span class="summary-value"><strong id="cost-summary-consommable-cost">0</strong>€</span>
+          </div>
+
+          <div class="summary-item">
+            <span class="summary-label">Software</span>
+            <span class="summary-value"><strong id="cost-summary-software-cost">0</strong>€</span>
+          </div>
+
+          <div class="summary-item">
+            <span class="summary-label">Labor</span>
+            <span class="summary-value"><strong id="cost-summary-human-cost">0</strong>€</span>
+          </div>
+          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
+            @ <strong id="cost-summary-human-hourly-price">0</strong>€/hour
+          </div>
+
+          <div class="summary-item mt-4">
+            <span class="summary-label">Urgency Multiplier</span>
+            <span class="summary-value"><strong id="cost-summary-majoration-cost">0</strong>€</span>
+          </div>
+          <div class="text-xs text-slate-400 px-3 py-2 bg-slate-700/20 rounded">
+            (before: <strong id="cost-summary-before-majoration-human-cost">0</strong>€)
+          </div>
+
+          <div class="summary-item mt-4">
+            <span class="summary-label">License Fee</span>
+            <span class="summary-value"><strong id="cost-summary-license-cost">0</strong>€</span>
+          </div>
+
+          <div class="summary-item">
+            <span class="summary-label">Asso Contribution</span>
+            <span class="summary-value"><strong id="cost-summary-asso-contribution">0</strong>€</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save and Load Jobs Section -->
+    <div class="mb-8">
+      <h2 class="text-slate-200 mb-6 flex items-center gap-2">
+        <span class="text-blue-400">💾</span> Job Management
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Save New Job -->
+        <div class="card">
+          <h3 class="text-slate-100 font-semibold mb-4">Save Current Job</h3>
+          <div class="space-y-3">
+            <input id="save-name" type="text" placeholder="Job name (optional)" class="input-field w-full" />
+            <button id="save-job" class="btn btn-primary w-full">Save Job</button>
+          </div>
+        </div>
+
+        <!-- Saved Jobs List -->
+        <div class="md:col-span-2 card">
+          <h3 class="text-slate-100 font-semibold mb-4">Saved Jobs</h3>
+          <div id="saved-list" class="space-y-2 max-h-96 overflow-y-auto">
+            <div class="text-slate-400 text-center py-8">Loading jobs...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Editing Options -->
+  <div id="edit-modal" class="hidden modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 class="modal-title">Edit Options</h3>
+      </div>
+      <div class="modal-body">
+        <div id="edit-modal-content"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="saveEditOptions()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // API-based configuration and job management
+    const API_BASE = '/api/';
+
+    // HTMX event listener
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+      serializeStateToUI();
+      document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
+    });
+
+    // --- API calls for config and jobs ---
+    async function loadConfigurations() {
+      try {
+        const res = await fetch(API_BASE + 'configurations/');
+        if (!res.ok) throw new Error('Failed to load configurations');
+        return await res.json(); // {gid: [options]}
+      } catch (e) {
+        console.error('Load config error:', e);
+        return {};
+      }
+    }
+
+    async function saveConfigurations(configMap) {
+      try {
+        const res = await fetch(API_BASE + 'configurations/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(configMap)
+        });
+        return res.ok;
+      } catch (e) {
+        console.error('Save config error:', e);
+        return false;
+      }
+    }
+
+    async function loadSavedJobs() {
+      try {
+        const res = await fetch(API_BASE + 'saved-jobs/');
+        if (!res.ok) throw new Error('Failed to load jobs');
+        return await res.json(); // [{id, name, state_json, created_at}, ...]
+      } catch (e) {
+        console.error('Load jobs error:', e);
+        return [];
+      }
+    }
+
+    async function saveNewJob(name, stateId, state) {
+      try {
+        const res = await fetch(API_BASE + 'saved-jobs/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, state_id: stateId, state })
+        });
+        return res.ok ? await res.json() : null;
+      } catch (e) {
+        console.error('Save job error:', e);
+        return null;
+      }
+    }
+
+    async function deleteJob(jobId) {
+      try {
+        const res = await fetch(API_BASE + `saved-jobs/${jobId}/delete/`, { method: 'DELETE' });
+        return res.ok;
+      } catch (e) {
+        console.error('Delete job error:', e);
+        return false;
+      }
+    }
+
+    // In-memory cache for configurations
+    let configCache = {};
+
+    async function getConfigurationCache() {
+      if (Object.keys(configCache).length === 0) {
+        configCache = await loadConfigurations();
+      }
+      return configCache;
+    }
+
+    function extractOptionsFromSelect(form) {
+      const select = form.querySelector('select[name="value"]');
+      if (!select) return [];
+      const options = [];
+      for (let i = 1; i < select.options.length; i++) {
+        const opt = select.options[i];
+        const obj = { name: opt.value };
+        for (const k in opt.dataset) {
+          obj[k] = opt.dataset[k];
+        }
+        options.push(obj);
+      }
+      return options;
+    }
+
+    async function getOptionsForGroup(form) {
+      const gid = String(form.dataset.groupId);
+      const cache = await getConfigurationCache();
+      if (cache[gid]) return cache[gid];
+      return extractOptionsFromSelect(form);
+    }
+
+    function populateSelectFromOptions(form, opts) {
+      const sel = form.querySelector('select[name="value"]');
+      if (!sel) return;
+      const cur = sel.value;
+      sel.innerHTML = '';
+      const optPlaceholder = document.createElement('option');
+      optPlaceholder.value = '';
+      optPlaceholder.textContent = '-- choose --';
+      sel.appendChild(optPlaceholder);
+      (opts || []).forEach(o => {
+        const el = document.createElement('option');
+        el.value = o.name || '';
+        el.textContent = o.name || '';
+        Object.keys(o).forEach(k => {
+          if (k === 'name') return;
+          el.dataset[k] = o[k];
+        });
+        sel.appendChild(el);
+      });
+      if (cur) {
+        try {
+          sel.value = cur;
+        } catch (e) {}
+      }
+    }
+
+    // --- Modal editor with API persistence ---
+    let modalState = { groupId: null, keys: [] };
+    const modal = document.getElementById('edit-modal');
+    const modalContent = document.getElementById('edit-modal-content');
+    
+    function closeEditModal() {
+      modal.style.display = 'none';
+      modalState = { groupId: null, keys: [] };
+    }
+    
+    function showEditModal() {
+      modal.style.display = 'flex';
+    }
+    
+    window.closeEditModal = closeEditModal;
+    window.saveEditOptions = saveEditOptions;
+
+    async function openOptionsModal(gid) {
+      modalState.groupId = String(gid);
+      const form = document.querySelector(`.choice-form[data-group-id="${gid}"]`);
+      const opts = await getOptionsForGroup(form) || [];
+      const keys = unionKeysGeneric(opts);
+      modalState.keys = keys;
+      renderModal(opts, keys, form);
+      showEditModal();
+    }
+
+    function renderModal(opts, keys, form) {
+      const titleEl = modal.querySelector('.modal-title');
+      if (titleEl) {
+        titleEl.textContent = 'Edit options for ' + (form ? form.dataset.groupName : modalState.groupId);
+      }
+      
+      const rowsWrap = modalContent;
+      rowsWrap.innerHTML = '';
+      
+      // Add property section
+      const addSection = document.createElement('div');
+      addSection.className = 'mb-4 p-3 bg-slate-700/30 rounded';
+      const addLabel = document.createElement('label');
+      addLabel.className = 'flex items-center gap-2';
+      const addInput = document.createElement('input');
+      addInput.id = 'modal-new-prop';
+      addInput.className = 'input-field flex-1';
+      addInput.placeholder = 'property_name';
+      const addBtn = document.createElement('button');
+      addBtn.id = 'modal-add-prop';
+      addBtn.className = 'btn btn-secondary';
+      addBtn.textContent = 'Add Property';
+      addLabel.appendChild(addInput);
+      addLabel.appendChild(addBtn);
+      addSection.appendChild(addLabel);
+      rowsWrap.appendChild(addSection);
+      
+      // Header
+      const header = document.createElement('div');
+      header.className = 'flex gap-2 font-bold mb-3 p-3 bg-slate-700/50 rounded';
+      const hn = document.createElement('div');
+      hn.textContent = 'Name';
+      hn.className = 'flex-1';
+      header.appendChild(hn);
+      keys.forEach(k => {
+        const hk = document.createElement('div');
+        hk.className = 'flex-1';
+        const span = document.createElement('span');
+        span.textContent = prettyKey(k);
+        hk.appendChild(span);
+        const rm = document.createElement('button');
+        rm.textContent = '✕';
+        rm.className = 'ml-2 text-red-400 hover:text-red-300 text-sm';
+        rm.title = 'Remove property';
+        rm.addEventListener('click', () => {
+          removePropertyKey(k);
+        });
+        hk.appendChild(rm);
+        header.appendChild(hk);
+      });
+      rowsWrap.appendChild(header);
+      
+      // Options rows
+      (opts || []).forEach(o => rowsWrap.appendChild(buildModalRow(o, keys)));
+      
+      // Add button
+      const foot = document.createElement('div');
+      foot.className = 'mt-4';
+      const addRowBtn = document.createElement('button');
+      addRowBtn.className = 'btn btn-primary';
+      addRowBtn.textContent = '+ Add option';
+      addRowBtn.addEventListener('click', () => {
+        rowsWrap.appendChild(buildModalRow({}, modalState.keys));
+      });
+      foot.appendChild(addRowBtn);
+      rowsWrap.appendChild(foot);
+    }
+
+    function buildModalRow(opt, keys) {
+      const row = document.createElement('div');
+      row.className = 'flex gap-2 mb-3 p-3 bg-slate-700/20 rounded items-center';
+      row.setAttribute('data-row', 'option');
+      
+      const inpName = document.createElement('input');
+      inpName.className = 'input-field flex-1';
+      inpName.placeholder = 'Name';
+      inpName.value = opt && opt.name ? opt.name : '';
+      row.appendChild(inpName);
+      
+      keys.forEach(k => {
+        const inp = document.createElement('input');
+        inp.className = 'input-field flex-1';
+        inp.placeholder = prettyKey(k);
+        inp.value = opt && opt[k] !== undefined ? String(opt[k]) : '';
+        inp.dataset.key = k;
+        row.appendChild(inp);
+      });
+      
+      const del = document.createElement('button');
+      del.className = 'btn btn-danger btn-small';
+      del.textContent = 'Delete';
+      del.addEventListener('click', e => {
+        e.preventDefault();
+        row.remove();
+      });
+      row.appendChild(del);
+      return row;
+    }
+
+    function removePropertyKey(key) {
+      modalState.keys = modalState.keys.filter(k => k !== key);
+      const rows = Array.from(modalContent.querySelectorAll('div[data-row="option"]')).map(r => {
+        const name = r.querySelector('input:first-child').value;
+        const obj = { name };
+        modalState.keys.forEach(k => {
+          const inp = r.querySelector(`input[data-key="${k}"]`);
+          if (inp) obj[k] = tryParseNumber(inp.value);
+        });
+        return obj;
+      });
+      const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
+      renderModal(rows, modalState.keys, form);
+    }
+
+    function unionKeysGeneric(opts) {
+      const s = new Set();
+      (opts || []).forEach(o => {
+        if (o && typeof o === 'object') {
+          Object.keys(o).forEach(k => {
+            if (k !== 'name') s.add(k);
+          });
+        }
+      });
+      return Array.from(s);
+    }
+
+    function tryParseNumber(v) {
+      if (v === undefined) return v;
+      const n = parseFloat(v);
+      return isNaN(n) ? v : n;
+    }
+
+    // Set up modal event listeners
+    function initializeModalListeners() {
+      const addPropBtn = modalContent.querySelector('#modal-add-prop');
+      if (addPropBtn) {
+        addPropBtn.removeEventListener('click', onAddProperty);
+        addPropBtn.addEventListener('click', onAddProperty);
+      }
+    }
+
+    async function onAddProperty() {
+      const input = modalContent.querySelector('#modal-new-prop');
+      const v = input.value.trim();
+      if (!v) return alert('Enter property name');
+      if (modalState.keys.includes(v)) return alert('Property already present');
+      modalState.keys.push(v);
+      const rows = Array.from(modalContent.querySelectorAll('div[data-row="option"]')).map(r => {
+        const name = r.querySelector('input:first-child').value;
+        const obj = { name };
+        modalState.keys.forEach(k => {
+          const inp = r.querySelector(`input[data-key="${k}"]`);
+          if (inp) obj[k] = tryParseNumber(inp.value);
+        });
+        return obj;
+      });
+      const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
+      renderModal(rows, modalState.keys, form);
+      input.value = '';
+      setTimeout(initializeModalListeners, 0);
+    }
+    
+    async function saveEditOptions() {
+      const rows = Array.from(modalContent.querySelectorAll('div[data-row="option"]'));
+      const parsed = rows.map(r => {
+        const name = r.querySelector('input:first-child').value.trim();
+        const obj = { name };
+        modalState.keys.forEach(k => {
+          const inp = r.querySelector(`input[data-key="${k}"]`);
+          if (inp) {
+            const v = inp.value.trim();
+            if (v !== '') obj[k] = tryParseNumber(v);
+          }
+        });
+        return obj;
+      }).filter(o => o.name);
+
+      // Save to server
+      configCache[String(modalState.groupId)] = parsed;
+      const success = await saveConfigurations(configCache);
+      
+      if (success) {
+        const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
+        populateSelectFromOptions(form, parsed);
+        closeEditModal();
+        alert('Options saved');
+      } else {
+        alert('Error saving options');
+      }
+    }
+
+    document.querySelectorAll('.edit-options').forEach(b => b.addEventListener('click', (e) => {
+      openOptionsModal(b.dataset.groupId);
+    }));
+
+    // --- Saved jobs management (API-based) ---
+    async function populateSavedList() {
+      const wrap = document.getElementById('saved-list');
+      const jobs = await loadSavedJobs();
+      if (!wrap) return;
+      if (jobs.length === 0) {
+        wrap.innerHTML = '<div class="text-center text-slate-400 py-8">No saved jobs yet</div>';
+        return;
+      }
+      wrap.innerHTML = '';
+      jobs.slice().reverse().forEach(j => {
+        const el = document.createElement('div');
+        el.className = 'job-item';
+        
+        const left = document.createElement('div');
+        left.className = 'flex-1';
+        const jobName = document.createElement('div');
+        jobName.className = 'job-name';
+        jobName.textContent = j.name || 'Unnamed Job';
+        const jobTime = document.createElement('div');
+        jobTime.className = 'job-time';
+        jobTime.textContent = new Date(j.created_at).toLocaleString();
+        left.appendChild(jobName);
+        left.appendChild(jobTime);
+        
+        const btns = document.createElement('div');
+        btns.className = 'job-actions';
+        
+        const load = document.createElement('button');
+        load.className = 'btn btn-secondary btn-small';
+        load.textContent = '📥 Load';
+        load.addEventListener('click', () => {
+          applyState(j.state_json);
+          serializeStateToUI();
+          updateAllDetailsAndSummary();
+        });
+        
+        const del = document.createElement('button');
+        del.className = 'btn btn-danger btn-small';
+        del.textContent = '🗑️ Delete';
+        del.addEventListener('click', async () => {
+          const ok = await deleteJob(j.id);
+          if (ok) populateSavedList();
+        });
+        
+        const exp = document.createElement('button');
+        exp.className = 'btn btn-secondary btn-small';
+        exp.textContent = '⬇️ Export';
+        exp.addEventListener('click', () => {
+          exportJobs([j]);
+        });
+        
+        btns.appendChild(load);
+        btns.appendChild(del);
+        btns.appendChild(exp);
+        el.appendChild(left);
+        el.appendChild(btns);
+        wrap.appendChild(el);
+      });
+    }
+
+    function exportJobs(list) {
+      const blob = new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'saved_jobs.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    document.getElementById('save-job').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('save-name').value.trim() || 'Job ' + new Date().toLocaleString();
+      const id = serializeStateToUI();
+      const state = buildState();
+      const job = await saveNewJob(name, id, state);
+      if (job) {
+        document.getElementById('save-name').value = '';
+        populateSavedList();
+        alert('Saved');
+      } else {
+        alert('Error saving job');
+      }
+    });
+
+
+    function updateAllDetailsAndSummary() {
+      document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
+    }
+
+    // Table handling (unchanged)
+    function updateLineNumbers() {
+      const rows = document.querySelectorAll('#data-table tbody tr');
+      rows.forEach((r, i) => r.querySelector('.ln').textContent = i + 1);
+    }
+
+    function addRow(qty = '', tps = '', sup = 0) {
+      const tbody = document.querySelector('#data-table tbody');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="ln"></td><td><input class="col-qty" value="${escapeHtml(qty)}"/></td><td><input class="col-tps" value="${escapeHtml(tps)}"/></td><td><input class="col-sup" value="${escapeHtml(sup)}"/></td><td><button class="del-row">Supprimer la ligne</button></td>`;
+      tbody.appendChild(tr);
+      attachRowHandlers(tr);
+      updateLineNumbers();
+      updateSummary();
+      serializeStateToUI();
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function attachRowHandlers(tr) {
+      tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
+        updateSummary();
+        serializeStateToUI();
+      }));
+      tr.querySelector('.del-row').addEventListener('click', (e) => {
+        e.preventDefault();
+        tr.remove();
+        updateLineNumbers();
+        updateSummary();
+        serializeStateToUI();
+      });
+    }
+
+    document.getElementById('add-row').addEventListener('click', function (e) {
+      e.preventDefault();
+      addRow();
+    });
+
+    document.querySelectorAll('#data-table tbody tr').forEach(tr => attachRowHandlers(tr));
+    updateLineNumbers();
+
+    // function computeResult() {
+    //   const vals = Array.from(document.querySelectorAll('.col-sup')).map(i => parseFloat(i.value) || 0);
+    //   const sum = vals.reduce((a, b) => a + b, 0);
+    //   let multiplier = 1;
+    //   const qualitySelect = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Quality' || f.dataset.groupId === '5');
+    //   if (qualitySelect) {
+    //     const v = qualitySelect.querySelector('select[name="value"]').value;
+    //     if (v === 'Low') multiplier = 0.8;
+    //     else if (v === 'Medium') multiplier = 1.0;
+    //     else if (v === 'High') multiplier = 1.2;
+    //   }
+    //   let materialPrice = 1;
+    //   const materialForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Matière' || f.dataset.groupId === '2');
+    //   if (materialForm) {
+    //     const sel = materialForm.querySelector('select[name="value"]');
+    //     if (sel && sel.selectedOptions && sel.selectedOptions[0]) {
+    //       const ds = sel.selectedOptions[0].dataset || {};
+    //       for (const k in ds) {
+    //         if (/price/i.test(k)) {
+    //           const p = parseFloat(ds[k]);
+    //           if (!isNaN(p)) {
+    //             materialPrice = p;
+    //             break;
+    //           }
+    //         }
+    //       }
+    //     }
+    //   }
+    //   const result = (sum * materialPrice * multiplier).toFixed(2);
+    //   document.getElementById('computed-result').textContent = result;
+    //   updateSummary();
+    //   return result;
+    // }
+
+    function updateSummary() {
+    // Find current selections and get values for groups
+      const machineForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Machine');
+      const materialForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Matière');
+      const adherentForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Tarifs adhérent pour les machines');
+      const consommableForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Consommable');
+      const softwareForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Logiciel de modélisation');
+      const prestationForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de prestation');
+      const licenseForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de licence');
+      const majorationForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Majoration pour urgence, déplacements...');
+      const contribitionForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Contribution au projet asso');
+
+
+      // Calculate total material (sum of col-qty) * prix
+      const qtyValues = Array.from(document.querySelectorAll('.col-qty')).map(i => parseFloat(i.value) || 0);
+      const totalQty = qtyValues.reduce((a, b) => a + b, 0);
+      
+      const materialPrice = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix : 0;
+      const materialName = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
+
+      const materialCost = (totalQty * materialPrice).toFixed(2);
+      document.getElementById('total-material').textContent = totalQty;
+      document.getElementById('cost-summary-total-material-cost').textContent = materialCost;
+      document.getElementById('cost-summary-material-cost').textContent = materialPrice;
+      document.getElementById('cost-summary-material-name').textContent = materialName;
+      
+      // Calculate total operating time (sum of col-tps)
+      const tpsValues = Array.from(document.querySelectorAll('.col-tps')).map(i => parseFloat(i.value) || 0);
+      const totalTps = tpsValues.reduce((a, b) => a + b, 0).toFixed(2);
+      document.getElementById('total-tps').textContent = totalTps;
+        
+      // Calculate total additional operator time (sum of col-sup)
+      const supValues = Array.from(document.querySelectorAll('.col-sup')).map(i => parseFloat(i.value) || 0);
+      const totalAdditionalTime = supValues.reduce((a, b) => a + b, 0).toFixed(2);
+      document.getElementById('total-additional-time').textContent = totalAdditionalTime;
+      
+      // Get operator time percentage for machine
+      const machinePercentTimeForOperator = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcent_temps || 0 : 0;
+      const machineName = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
+
+      // Total operator time = (tps * pourcent_temps / 100) + additional time
+      const finalOperatorTime = (parseFloat(totalTps * machinePercentTimeForOperator / 100) + parseFloat(totalAdditionalTime)).toFixed(2);
+      document.getElementById('time-summary-pourcent-temps').textContent = machinePercentTimeForOperator;
+      document.getElementById('time-summary-machine-name').textContent = machineName;
+      document.getElementById('total-operator-time').textContent = finalOperatorTime;
+
+      // Calculate machine cost if machine has prix and totalTps
+      const machinePriceNormal = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_normal : 1;
+      const machinePriceAdherent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_adherent : 1;
+      const is_adherent = adherentForm.querySelector('select[name="value"]').selectedOptions[0].value == "Oui" ? true : false;
+      const machinePrice = is_adherent ? machinePriceAdherent : machinePriceNormal;
+      const machineCost = (parseFloat(totalTps) * parseFloat(machinePrice)).toFixed(2);
+      document.getElementById('cost-summary-total-machine-cost').textContent = machineCost;
+      document.getElementById('cost-summary-machine-cost').textContent = machinePrice;
+      document.getElementById('cost-summary-machine-name').textContent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
+      document.getElementById('cost-summary-is-adherent').textContent = is_adherent ? "(Tarif adhérent)" : "";
+      
+      // Calculate consommable cost
+      const consumablePrice = consommableForm ? consommableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
+      const consumableLifetime = consommableForm ? consommableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.duree_vie_totale_minutes || 0 : 0;
+
+      const consumableCost = (totalTps * consumablePrice / consumableLifetime).toFixed(2);
+      document.getElementById('cost-summary-consommable-cost').textContent = consumableCost;
+
+      const softwareMonthlyPrice = softwareForm ? softwareForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_mensuel || 0 : 0;
+      const softwareCost = (softwareMonthlyPrice * (totalTps / (30 * 24 * 60))).toFixed(2);
+      document.getElementById('cost-summary-software-cost').textContent = softwareCost;
+
+      const humanHourlyPrice = prestationForm ? prestationForm.querySelector('select[name="value"]').selectedOptions[0].dataset.taux_horaire || 0 : 0;
+      document.getElementById('cost-summary-human-hourly-price').textContent = humanHourlyPrice;
+      const humanCost = (humanHourlyPrice * totalTps / 60).toFixed(2);
+      document.getElementById('cost-summary-human-cost').textContent = humanCost;
+
+
+      const licenseCost = licenseForm ? licenseForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
+      document.getElementById('cost-summary-license-cost').textContent = licenseCost;
+
+      const grossCost = (parseFloat(materialCost) + parseFloat(machineCost) + parseFloat(consumableCost) + parseFloat(softwareCost) + parseFloat(humanCost) + parseFloat(licenseCost)).toFixed(2);
+    //   document.getElementById('cost-summary-gross-cost').textContent = grossCost;
+
+
+      const majorationRate = majorationForm ? majorationForm.querySelector('select[name="value"]').selectedOptions[0].dataset.majoration_coef || 0 : 0;
+      document.getElementById('cost-summary-majoration-cost').textContent = (parseFloat(majorationRate) * parseFloat(humanCost)).toFixed(2);
+      document.getElementById('cost-summary-before-majoration-human-cost').textContent = humanCost;
+
+      const additionalContribution = contribitionForm ? contribitionForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcentage_contribution || 0 : 0;
+      document.getElementById('cost-summary-asso-contribution').textContent = (parseFloat(additionalContribution) * parseFloat(grossCost)).toFixed(2);
+      
+
+
+      // FINAL COST
+      const finalCost = (parseFloat(grossCost) - parseFloat(humanCost) + parseFloat(majorationRate) * parseFloat(humanCost) + parseFloat(additionalContribution) * parseFloat(grossCost)).toFixed(2);
+      const numberOfCopies = parseInt(document.getElementById('number-of-copies').value) || 1;
+      document.getElementById('cost-summary-final-cost-unit').textContent = finalCost;
+      document.getElementById('cost-summary-final-cost').textContent = (parseFloat(finalCost) * numberOfCopies).toFixed(2);
+
+
+    }
+
+    function prettyKey(k) {
+      return k.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    }
+
+    function updateChoiceDetails(form) {
+      if (!form) return;
+      const gid = form.dataset.groupId;
+      const detailsEl = document.getElementById('details-' + gid);
+      if (!detailsEl) return;
+      const sel = form.querySelector('select[name="value"]');
+      if (!sel) {
+        detailsEl.innerHTML = '';
+        return;
+      }
+      const opt = sel.selectedOptions && sel.selectedOptions[0];
+      if (!opt || !opt.value) {
+        detailsEl.innerHTML = '';
+        return;
+      }
+      
+      const optionName = opt.value;
+      const ds = opt.dataset || {};
+      const properties = [];
+      for (const k in ds) {
+        if (!Object.prototype.hasOwnProperty.call(ds, k)) continue;
+        const v = ds[k];
+        if (v === undefined || v === null || String(v).trim() === '') continue;
+        properties.push({ key: prettyKey(k), value: v });
+      }
+      
+      // Build table HTML with styled classes
+      detailsEl.innerHTML = '';
+      const table = document.createElement('table');
+      table.className = 'details-table w-full text-xs mt-2';
+      
+      // Header row
+      const headerRow = document.createElement('tr');
+      headerRow.className = 'details-row details-header';
+      const headerCell1 = document.createElement('td');
+      headerCell1.className = 'details-cell';
+      headerCell1.textContent = 'Choix';
+      const headerCell2 = document.createElement('td');
+      headerCell2.className = 'details-cell';
+      headerCell2.textContent = optionName;
+      headerRow.appendChild(headerCell1);
+      headerRow.appendChild(headerCell2);
+      table.appendChild(headerRow);
+      
+      // Property rows
+      properties.forEach(prop => {
+        const row = document.createElement('tr');
+        row.className = 'details-row';
+        const labelCell = document.createElement('td');
+        labelCell.className = 'details-cell details-label';
+        labelCell.textContent = prop.key;
+        const valueCell = document.createElement('td');
+        valueCell.className = 'details-cell';
+        valueCell.textContent = prop.value;
+        row.appendChild(labelCell);
+        row.appendChild(valueCell);
+        table.appendChild(row);
+      });
+      
+      detailsEl.appendChild(table);
+    }
+
+    // State serialization (unchanged)
+    function buildState() {
+      const choices = {};
+      document.querySelectorAll('.choice-form').forEach(f => {
+        const id = f.dataset.groupId;
+        const val = f.querySelector('select[name="value"]').value;
+        choices[id] = val;
+      });
+      const rows = Array.from(document.querySelectorAll('#data-table tbody tr')).map(tr => ({
+        qty: tr.querySelector('.col-qty').value,
+        tps: tr.querySelector('.col-tps').value,
+        sup: tr.querySelector('.col-sup').value
+      }));
+      return { choices, rows };
+    }
+
+    function base64UrlEncode(str) {
+      return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function serializeStateToUI() {
+      const state = buildState();
+      const s = JSON.stringify(state);
+      const id = base64UrlEncode(s);
+      return id;
+    }
+
+    function applyState(obj) {
+      if (!obj) return;
+      Object.keys(obj.choices || {}).forEach(id => {
+        const form = document.querySelector(`.choice-form[data-group-id="${id}"]`);
+        if (form) {
+          const sel = form.querySelector('select[name="value"]');
+          if (sel) sel.value = obj.choices[id];
+          if (sel) sel.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+      const tbody = document.querySelector('#data-table tbody');
+      tbody.innerHTML = '';
+      (obj.rows || []).forEach(r => addRow(r.qty, r.tps, r.sup));
+      if ((obj.rows || []).length === 0) addRow();
+      updateSummary();
+    }
+
+    document.querySelectorAll('.choice-form select').forEach(s => s.addEventListener('change', (e) => {
+      const f = s.closest('.choice-form');
+      serializeStateToUI();
+      updateChoiceDetails(f);
+      updateSummary();
+    }));
+
+    document.getElementById('number-of-copies').addEventListener('change', () => {
+      serializeStateToUI();
+      updateSummary();
+    });
+
+    // Modal click outside to close
+    const editModal = document.getElementById('edit-modal');
+    if (editModal) {
+      editModal.addEventListener('click', (e) => {
+        if (e.target === editModal) {
+          closeEditModal();
+        }
+      });
+    }
+
+    // Initialization on load
+    window.addEventListener('load', async () => {
+      populateSavedList();
+      updateSummary();
+      serializeStateToUI();
+      document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
+      initializeModalListeners();
+    });
+  </script>
+{% endblock %}

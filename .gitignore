@@ -1,0 +1,22 @@
+.venv
+
+*.log
+__pycache__/
+db.sqlite3
+
+# Ignore media files (if you have a media directory for user uploads)
+media/
+# Ignore static files (if you have a static directory for collected static files)
+static/
+# Ignore environment variable files
+.env
+# Ignore IDE/editor specific files
+.vscode/
+# Ignore distribution files
+dist/
+build/
+*.egg-info/
+
+
+# Local stuff
+create_users.py

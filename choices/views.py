@@ -1,0 +1,401 @@
+from django.shortcuts import render, redirect
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
+import json
+from .models import UserConfiguration, UserSavedJob
+
+
+# Default groups (server-side definitions)
+DEFAULT_GROUPS = [
+    {"id": 1, "name": "Tarifs adhérent pour les machines", "options": [
+        {"name": "Non"},
+        {"name": "Oui"}
+    ]},
+    {"id": 2, "name": "Type de client (réduction sur le coût homme)", "options": [
+        {"name": "Aucun", "percent": 1},
+        {"name": "Adhérent", "percent": 0.6},
+        {"name": "Partenaire", "percent": 0.8},
+        {"name": "Amis", "percent": 0.9}
+    ]},
+    {"id": 3, "name": "Matière", "options": [
+        {"name":"Sans","type":"","epaisseur":"","prix":0,"url_achat":""},
+        {"name":"PMMA Plexi 3mm","type":"panneau_laser","epaisseur":3,"prix":45,"url_achat":""},
+        {"name":"PMMA Plexi 6mm","type":"panneau_laser","epaisseur":6,"prix":149.5,"url_achat":""},
+        {"name":"PMMA Plexi 8mm","type":"panneau_laser","epaisseur":8,"prix":191.07,"url_achat":""},
+        {"name":"LaserMaxx 3mm","type":"panneau_laser","epaisseur":3,"prix":105,"url_achat":""},
+        {"name":"CP Ordinaire 5mm","type":"panneau_laser","epaisseur":5,"prix":23.9,"url_achat":""},
+        {"name":"CP Ordinaire 10mm","type":"panneau_laser","epaisseur":10,"prix":37,"url_achat":""},
+        {"name":"CP Ordinaire 15mm","type":"panneau_laser","epaisseur":15,"prix":23.9,"url_achat":""},
+        {"name":"CP Ordinaire 18mm","type":"panneau_laser","epaisseur":18,"prix":58.9,"url_achat":""},
+        {"name":"Bois BALSA 4mm","type":"panneau_laser","epaisseur":4,"prix":145,"url_achat":""},
+        {"name":"CP Peuplier 3mm","type":"panneau_laser","epaisseur":3,"prix":12,"url_achat":""},
+        {"name":"CP Peuplier 5mm","type":"panneau_laser","epaisseur":5,"prix":12,"url_achat":""},
+        {"name":"CP Peuplier 10mm","type":"panneau_laser","epaisseur":10,"prix":16,"url_achat":""},
+        {"name":"CP Peuplier 15mm","type":"panneau_laser","epaisseur":15,"prix":20,"url_achat":""},
+        {"name":"CP Peuplier 18mm","type":"panneau_laser","epaisseur":18,"prix":120,"url_achat":""},
+        {"name":"Carton Bois 0,7mm","type":"panneau_laser","epaisseur":0.7,"prix":2.969,"url_achat":""},
+        {"name":"Carton Bois 2mm","type":"panneau_laser","epaisseur":2,"prix":8.333,"url_achat":""},
+        {"name":"Carton Bois 3mm","type":"panneau_laser","epaisseur":3,"prix":10.938,"url_achat":""},
+        {"name":"MDF 3mm brut","type":"panneau_laser","epaisseur":3,"prix":7.9,"url_achat":""},
+        {"name":"MDF 6mm Brut","type":"panneau_laser","epaisseur":6,"prix":13,"url_achat":""},
+        {"name":"MDF 10mm Brut","type":"panneau_laser","epaisseur":10,"prix":14.9,"url_achat":""},
+        {"name":"MDF 15mm Brut","type":"panneau_laser","epaisseur":15,"prix":18.9,"url_achat":""},
+        {"name":"MDF 18mm Brut","type":"panneau_laser","epaisseur":18,"prix":20.9,"url_achat":""},
+        {"name":"MDF 22mm Brut","type":"panneau_laser","epaisseur":22,"prix":24.9,"url_achat":""},
+        {"name":"PET-G Translucide teint","type":"filament","epaisseur":1.75,"prix":0.03,"url_achat":""},
+        {"name":"PET-G Translucide non teint","type":"filament","epaisseur":1.75,"prix":0.03,"url_achat":""},
+        {"name":"Filament Souple","type":"filament","epaisseur":1.75,"prix":0.042,"url_achat":""},
+        {"name":"Fil Réactif au UV","type":"filament","epaisseur":1.75,"prix":0.036,"url_achat":""},
+        {"name":"Filament Acier","type":"filament","epaisseur":1.75,"prix":0.065,"url_achat":""},
+        {"name":"Filament Bois","type":"filament","epaisseur":1.75,"prix":0.033,"url_achat":""},
+        {"name":"Filament Cuivre","type":"filament","epaisseur":1.75,"prix":0.067,"url_achat":""},
+        {"name":"Filament Or","type":"filament","epaisseur":1.75,"prix":0.078,"url_achat":""},
+        {"name":"Filament Pierre","type":"filament","epaisseur":1.75,"prix":0.033,"url_achat":""},
+        {"name":"Fil Réactif à la chaleur","type":"filament","epaisseur":1.75,"prix":0.036,"url_achat":""},
+        {"name":"ABS 1 kg","type":"filament","epaisseur":1.75,"prix":0.022,"url_achat":""},
+        {"name":"ICE PLA B2.3Kg","type":"filament","epaisseur":1.75,"prix":0.017,"url_achat":"http://amzn.eu/d/9q8A8dd"},
+        {"name":"PLA 1 Kg","type":"filament","epaisseur":1.75,"prix":0.025,"url_achat":""},
+        {"name":"PLA Couleur","type":"filament","epaisseur":1.75,"prix":0.025,"url_achat":""},
+        {"name":"PLA fuorecent","type":"filament","epaisseur":1.75,"prix":0.025,"url_achat":""},
+        {"name":"PLA Marbre","type":"filament","epaisseur":1.75,"prix":0.03,"url_achat":""},
+        {"name":"PLA pailleté","type":"filament","epaisseur":1.75,"prix":0.036,"url_achat":""},
+        {"name":"PLA Phosphorescent","type":"filament","epaisseur":1.75,"prix":0.028,"url_achat":""},
+        {"name":"Résine_Noire","type":"resine","epaisseur":"","prix":0.04,"url_achat":""},
+        {"name":"PVC 10 mm","type":"panneau","epaisseur":"","prix":72.07,"url_achat":""}
+    ]},
+    {"id": 4, "name": "Consommable", "options": [
+        {"name":"_Sans","prix":0,"duree_vie_totale_minutes":1},
+        {"name":"Alcool_Iso","prix":50,"duree_vie_totale_minutes":2000},
+        {"name":"Fraise D3,17 1 dent","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 1 dent aluminium","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 1 dent DLC","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 1 dent EVO","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 1 dent EVOMAX","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 1 dent gauche","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 2 dents droites","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 2 dents EVOMAX","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 2 dents fishtail EVO","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 2 dents gauche fishtail EVO","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 2 dents hémisphérique","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17 3 dents EVO","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17  à graver","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17  coupe diamant","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D3,17  coupe diamant CVD-D","prix":12.9,"duree_vie_totale_minutes":345},
+        {"name":"Fraise D3,17  hélicoïdales 2 dents","prix":12.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D4 1 dent DLC","prix":14.9,"duree_vie_totale_minutes":345},
+        {"name":"Fraise D4 2 dents droites","prix":14.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D4 2 dents Revêtues","prix":14.9,"duree_vie_totale_minutes":345},
+        {"name":"Fraise D6 1 dent","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 1 dent DLC","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 1 dent EVO","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 2 dents Alu","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 2 dents droites","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 2 dents gauche fishtail EVO","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 2 dents hémisphérique","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 2 dents Revêtues","prix":25,"duree_vie_totale_minutes":345},
+        {"name":"Fraise D6 3 dents Alu","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 4 dents bois EVO","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 coupe diamant","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 hélicoïdales 2 dents","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D6 helicoïdales 2 dents EVO","prix":21.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D8 2 dents Alu","prix":25.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D8 2 dents droites","prix":25.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D8 3 dents Alu","prix":25.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D8 4 dents bois EVO","prix":25.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D8 hélicoïdales 1 dent","prix":25.9,"duree_vie_totale_minutes":240},
+        {"name":"Fraise D8 hélicoïdales 2 dents","prix":25.9,"duree_vie_totale_minutes":240}
+    ]},
+    {"id": 5, "name": "Logiciel de modélisation", "options": [
+        {"name":"Aucun","prix_mensuel":0},
+        {"name":"Autocad","prix_mensuel":258},
+        {"name":"Fusion 360 Entreprise","prix_mensuel":42},
+        {"name":"Fusion 360 Start-Up","prix_mensuel":0},
+        {"name":"Rhino 6","prix_mensuel":27.8}
+    ]},
+    {"id": 6, "name": "Type de prestation", "options": [
+        {"name": "One-Shot", "taux_horaire": 40},
+        {"name": "> 2", "taux_horaire": 35},
+        {"name": " > 10", "taux_horaire": 25},
+        {"name": "Modelisation", "taux_horaire": 60},
+        {"name": "Coût homme OFFERT", "taux_horaire": 0}
+    ]},
+    {"id": 7, "name": "Type de licence", "options": [
+        {"name":"CC-Zero","description":"Zéro","prix":0},
+        {"name":"CC-BY-SA","description":"Attribution - Partage dans les Mêmes Conditions","prix":0},
+        {"name":"CC-BY-NC-SA","description":"Attribution - Pas d'utilisation commerciale - Partage dans les Mêmes Conditions","prix":10},
+        {"name":"CC-BY-ND-SA","description":"Attribution - Pas de modification - Partage dans les Mêmes Conditions","prix":20},
+        {"name":"CC-BY-NC-ND-SA","description":"Attribution - Pas d'utilisation commerciale - Pas de modification - Partage dans les Mêmes Conditions","prix":30},
+        {"name":"CC-BY-NC-ND-DP-SA","description":"Attribution - Pas d'utilisation commerciale - Pas de modification - Pas de diffusion - Partage dans les Mêmes Conditions","prix":50}
+]},
+    {"id": 8, "name": "Majoration pour urgence, déplacements...", "options": [
+        {"name": "Aucun", "majoration_coef": 1},
+        {"name": "Urgent", "majoration_coef": 1.2},
+        {"name": "Travail en soirée", "majoration_coef": 1.9}
+    ]},
+    {"id": 9, "name": "Contribution au projet asso", "options": [
+        {"name": "base", "pourcentage_contribution": 0.1},
+        {"name": "Bonus -2", "pourcentage_contribution": 0.15},
+        {"name": "Bonus -1", "pourcentage_contribution": 0.2},
+        {"name": "Normal", "pourcentage_contribution": 0.3},
+        {"name": "Bonus +1", "pourcentage_contribution": 0.5},
+        {"name": "Bonus +2", "pourcentage_contribution": 0.8},
+        {"name": "Bonus +3", "pourcentage_contribution": 0.9}
+    ]},
+    {"id": 10, "name": "Machine", "options": [
+        {"name": "Sans_Machine","type": "None","prix_achat": "","cout_fonctionnement": "","duree_amortissement_mois": 60,"prix_adherent": 0,"prix_normal": 0,"majoration": 0,"pourcent_temps": ""},
+        {"name": "Créality Under3_Pro_V2","type": "imprimante_3D","prix_achat": 300,"cout_fonctionnement": 2.5,"duree_amortissement_mois": 36,"prix_adherent": 3,"prix_normal": 5,"majoration": 5,"pourcent_temps": 15},
+        {"name": "Ultimaker S5","type": "imprimante_3D","prix_achat": 6500,"cout_fonctionnement": 3,"duree_amortissement_mois": 60,"prix_adherent": 5,"prix_normal": 8,"majoration": 3,"pourcent_temps": 15},
+        {"name": "CNC 2300*1300","type": "cnc","prix_achat": 15000,"cout_fonctionnement": 10,"duree_amortissement_mois": 60,"prix_adherent": 13,"prix_normal": 20,"majoration": 13,"pourcent_temps": 30},
+        {"name": "Découpe Vinyle","type": "vinyl_cutter","prix_achat": 500,"cout_fonctionnement": 2.5,"duree_amortissement_mois": 36,"prix_adherent": 3,"prix_normal": 5,"majoration": 10,"pourcent_temps": 30},
+        {"name": "Résine Mono X","type": "imprimante_3D_resine","prix_achat": 1500,"cout_fonctionnement": 5,"duree_amortissement_mois": 60,"prix_adherent": 6,"prix_normal": 9,"majoration": 5,"pourcent_temps": 20},
+        {"name": "Mini Découpe Laser","type": "laser_cutter","prix_achat": 500,"cout_fonctionnement": 2.5,"duree_amortissement_mois": 36,"prix_adherent": 3,"prix_normal": 5,"majoration": 5,"pourcent_temps": 15},
+        {"name": "Mini CNC 3018","type": "cnc","prix_achat": 500,"cout_fonctionnement": 2.5,"duree_amortissement_mois": 36,"prix_adherent": 3,"prix_normal": 5,"majoration": 5,"pourcent_temps": 10},
+        {"name": "CNC ALU 3040","type": "cnc","prix_achat": 7500,"cout_fonctionnement": 13,"duree_amortissement_mois": 60,"prix_adherent": 15,"prix_normal": 23,"majoration": 13,"pourcent_temps": 30},
+        {"name": "Découpe Laser","type": "laser_cutter","prix_achat": 20000,"cout_fonctionnement": 5,"duree_amortissement_mois": 100,"prix_adherent": 7,"prix_normal": 11,"majoration": 10,"pourcent_temps": 20},
+        {"name": "FLSUN-V400","type": "imprimante_3D","prix_achat": 800,"cout_fonctionnement": 5,"duree_amortissement_mois": 12,"prix_adherent": 6,"prix_normal": 9,"majoration": 3,"pourcent_temps": 15},
+        {"name": "CNC ALPHA XL","type": "cnc","prix_achat": 12000,"cout_fonctionnement": 10,"duree_amortissement_mois": 60,"prix_adherent": 12,"prix_normal": 18,"majoration": 13,"pourcent_temps": 30}
+    ]},
+]
+
+
+def register_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        password_confirm = request.POST.get("password_confirm")
+
+        if not username or not password:
+            return render(request, "auth/register.html", {"error": "Username and password required"})
+        
+        if password != password_confirm:
+            return render(request, "auth/register.html", {"error": "Passwords do not match"})
+
+        if User.objects.filter(username=username).exists():
+            return render(request, "auth/register.html", {"error": "Username already exists"})
+
+        user = User.objects.create_user(username=username, password=password)
+        login(request, user)
+        return redirect("choices:index")
+
+    return render(request, "auth/register.html")
+
+
+def login_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect("choices:index")
+        else:
+            return render(request, "auth/login.html", {"error": "Invalid credentials"})
+
+    return render(request, "auth/login.html")
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("/login/")
+
+
+@login_required(login_url="/login/")
+def index(request):
+    """Main app page with groups"""
+    groups = []
+    for g in DEFAULT_GROUPS:
+        group_copy = g.copy()
+        # Get user's customized options if they exist, otherwise use defaults
+        try:
+            config = UserConfiguration.objects.get(user=request.user, group_id=g["id"])
+            group_copy["options"] = config.options_json
+        except UserConfiguration.DoesNotExist:
+            group_copy["options"] = g["options"]
+        
+        group_copy["options_json"] = json.dumps(group_copy["options"])
+        groups.append(group_copy)
+
+    return render(request, "choices/index.html", {"groups": groups})
+
+
+@login_required(login_url="/login/")
+def update_choice(request):
+    """HTMX endpoint for choice summary updates"""
+    if request.method != "POST":
+        return HttpResponseBadRequest("Only POST allowed")
+    group = request.POST.get("group")
+    value = request.POST.get("value")
+    if not group or value is None:
+        return HttpResponseBadRequest("Missing data")
+    html = f'<div id="summary-{group}">Selected: <strong>{value}</strong></div>'
+    return HttpResponse(html)
+
+
+@login_required(login_url="/login/")
+@require_http_methods(["GET", "POST"])
+def api_get_configurations(request):
+    """Get all user configurations (JSON)"""
+    if request.method == "GET":
+        configs = UserConfiguration.objects.filter(user=request.user)
+        result = {}
+        for config in configs:
+            result[str(config.group_id)] = config.options_json
+        return JsonResponse(result)
+    
+    # POST: Save configurations
+    try:
+        data = json.loads(request.body)
+        for group_id, options in data.items():
+            group_id = int(group_id)
+            group = next((g for g in DEFAULT_GROUPS if g["id"] == group_id), None)
+            if group:
+                UserConfiguration.objects.update_or_create(
+                    user=request.user,
+                    group_id=group_id,
+                    defaults={
+                        "group_name": group["name"],
+                        "options_json": options,
+                    }
+                )
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required(login_url="/login/")
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def api_get_saved_jobs(request):
+    """Get all user saved jobs or save a new job"""
+    if request.method == "GET":
+        jobs = UserSavedJob.objects.filter(user=request.user)
+        jobs_data = [
+            {
+                "id": job.id,
+                "name": job.name,
+                "state_id": job.state_id,
+                "state_json": job.state_json,  # JSONField is automatically deserialized
+                "created_at": job.created_at.isoformat()
+            }
+            for job in jobs
+        ]
+        return JsonResponse(jobs_data, safe=False)
+    
+    # POST: Save a new job
+    try:
+        data = json.loads(request.body)
+        name = data.get("name", "Unnamed Job")
+        state_id = data.get("state_id", "")
+        state_json = data.get("state", {})
+        
+        job = UserSavedJob.objects.create(
+            user=request.user,
+            name=name,
+            state_id=state_id,
+            state_json=state_json
+        )
+        return JsonResponse({
+            "id": job.id,
+            "name": job.name,
+            "state_id": job.state_id,
+            "created_at": job.created_at.isoformat()
+        })
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required(login_url="/login/")
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def api_delete_saved_job(request, job_id):
+    """Delete a saved job"""
+    try:
+        job = UserSavedJob.objects.get(id=job_id, user=request.user)
+        job.delete()
+        return JsonResponse({"success": True})
+    except UserSavedJob.DoesNotExist:
+        return JsonResponse({"error": "Job not found"}, status=404)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required(login_url="/login/")
+@require_http_methods(["POST"])
+def api_export_configurations(request):
+    """Export all configurations as JSON"""
+    configs = UserConfiguration.objects.filter(user=request.user)
+    result = {}
+    for config in configs:
+        result[str(config.group_id)] = config.options_json
+    
+    response = HttpResponse(json.dumps(result, indent=2), content_type="application/json")
+    response["Content-Disposition"] = "attachment; filename=group_options_config.json"
+    return response
+
+
+@login_required(login_url="/login/")
+@require_http_methods(["POST"])
+def api_import_configurations(request):
+    """Import configurations from JSON"""
+    try:
+        data = json.loads(request.body)
+        for group_id, options in data.items():
+            group_id = int(group_id)
+            group = next((g for g in DEFAULT_GROUPS if g["id"] == group_id), None)
+            if group:
+                UserConfiguration.objects.update_or_create(
+                    user=request.user,
+                    group_id=group_id,
+                    defaults={
+                        "group_name": group["name"],
+                        "options_json": options,
+                    }
+                )
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
+
+@login_required(login_url="/login/")
+@require_http_methods(["POST"])
+def api_export_saved_jobs(request):
+    """Export all saved jobs as JSON"""
+    jobs = UserSavedJob.objects.filter(user=request.user)
+    result = [
+        {
+            "id": job.id,
+            "name": job.name,
+            "state_id": job.state_id,
+            "state": job.state_json,
+            "created_at": job.created_at.isoformat()
+        }
+        for job in jobs
+    ]
+    
+    response = HttpResponse(json.dumps(result, indent=2), content_type="application/json")
+    response["Content-Disposition"] = "attachment; filename=saved_jobs.json"
+    return response
+
+
+@login_required(login_url="/login/")
+@require_http_methods(["POST"])
+def api_import_saved_jobs(request):
+    """Import saved jobs from JSON"""
+    try:
+        data = json.loads(request.body)
+        for item in data:
+            UserSavedJob.objects.create(
+                user=request.user,
+                name=item.get("name", "Imported Job"),
+                state_id=item.get("state_id", ""),
+                state_json=item.get("state", {})
+            )
+        return JsonResponse({"success": True})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=400)
+
