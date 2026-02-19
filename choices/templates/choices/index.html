@@ -23,26 +23,7 @@
       <div id="choices-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for g in groups %}
           {% if g.name != "Machine" %}
-          <div class="group bg-slate-800/80 border border-slate-500/20 rounded-lg p-4 transition-all">
-            <label class="block text-slate-100 font-bold text-sm uppercase tracking-wide mb-3">{{ g.name }}</label>
-            <form class="choice-form flex gap-2 items-start" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
-              {% csrf_token %}
-              <input type="hidden" name="group" value="{{ g.id }}">
-              <select name="value" class="flex-1 bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200">
-                {% for opt in g.options %}
-                  {% if opt.name %}
-                    <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
-                      {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
-                    >{{ opt.name }}</option>
-                  {% else %}
-                    <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
-                  {% endif %}
-                {% endfor %}
-              </select>
-            </form>
-            <button class="edit-options px-3 py-2 bg-slate-700 text-slate-100 border border-slate-700 rounded-md font-medium text-sm hover:bg-slate-600" data-group-id="{{ g.id }}">✏️ Edit</button>
-            <div id="details-{{ g.id }}" class="choice-details text-sm text-slate-400 mt-3"></div>
-          </div>
+            {% include "choices/configuration_section.html" %}
           {% endif%}
         {% endfor %}
       </div>
@@ -58,26 +39,7 @@
         <div id="choices-list" class="space-y-4">
           {% for g in groups %}
             {% if g.name == "Machine" %}
-              <div class="group bg-slate-800/80 border border-slate-500/20 rounded-lg p-4 transition-all">
-                <label class="block text-slate-100 font-bold text-sm uppercase tracking-wide mb-3">{{ g.name }}</label>
-                <form class="choice-form flex gap-2 items-start" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
-                  {% csrf_token %}
-                  <input type="hidden" name="group" value="{{ g.id }}">
-                  <select name="value" class="flex-1 bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200">
-                    {% for opt in g.options %}
-                      {% if opt.name %}
-                        <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
-                          {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
-                        >{{ opt.name }}</option>
-                      {% else %}
-                        <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
-                      {% endif %}
-                    {% endfor %}
-                  </select>
-                </form>
-                <button class="edit-options px-3 py-2 bg-slate-700 text-slate-100 border border-slate-700 rounded-md font-medium text-sm hover:bg-slate-600" data-group-id="{{ g.id }}">✏️ Edit</button>
-                <div id="details-{{ g.id }}" class="choice-details text-sm text-slate-400 mt-3"></div>
-              </div>
+              {% include "choices/configuration_section.html" %}
             {% endif %}
           {% endfor %}
         </div>
