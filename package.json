@@ -1,0 +1,29 @@
+{
+  "name": "abaque-fabrication-distribuee",
+  "version": "1.0.0",
+  "description": "Django + HTMX demo",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Klodd/abaque-fabrication-distribuee.git"
+  },
+  "keywords": [],
+  "author": "Klodd <c.perdigou@gmail.com>",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/Klodd/abaque-fabrication-distribuee/issues"
+  },
+  "homepage": "https://github.com/Klodd/abaque-fabrication-distribuee#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.24",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.2.0"
+  },
+  "dependencies": {
+    "@tailwindcss/cli": "^4.2.0"
+  }
+}

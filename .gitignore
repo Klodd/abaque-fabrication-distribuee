@@ -6,8 +6,6 @@ db.sqlite3
 
 # Ignore media files (if you have a media directory for user uploads)
 media/
-# Ignore static files (if you have a static directory for collected static files)
-static/
 # Ignore environment variable files
 .env
 # Ignore IDE/editor specific files
@@ -20,3 +18,9 @@ build/
 
 # Local stuff
 create_users.py
+
+
+node_modules/
+package-lock.json
+
+.DS_Store

@@ -1,797 +1,230 @@
 {% extends "choices/base.html" %}
+{% load static %}
 
 {% block content %}
-  <div style="position: absolute; top: 10px; right: 10px;">
-    <span>Logged in as: <strong>{{ user.username }}</strong></span>
-    <a href="/logout/" style="margin-left: 10px; color: #667eea; text-decoration: none;">Logout</a>
-  </div>
-  <h1>Abaque de la fabrication distribuée</h1>
-  <div id="choices-list">
-    {% for g in groups %}
-      {% if g.name == "Machine" %}
-          <hr>
-      {% endif%}
-      <div class="group" style="margin:12px 0;">
-        <label><strong>{{ g.name }}</strong></label>
-        <form class="choice-form" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
-          {% csrf_token %}
-          <input type="hidden" name="group" value="{{ g.id }}">
-          <select name="value">
-            {% for opt in g.options %}
-              {% if opt.name %}
-                <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
-                  {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
-                >{{ opt.name }}</option>
-              {% else %}
-                <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
-              {% endif %}
-            {% endfor %}
-          </select>
-        </form>
-        <div style="display:inline-block;margin-left:8px;"><button class="edit-options" data-group-id="{{ g.id }}">Edit options</button></div>
-        <div id="details-{{ g.id }}" class="choice-details" style="font-size:0.9em;color:#444;margin-left:6px;margin-top:4px;"></div>
+  <!-- Header -->
+  <div class="fixed top-0 right-0 left-0 bg-gradient-to-b from-slate-900/98 to-slate-900/95 backdrop-blur-sm border-b border-slate-500/20 p-4 z-50 shadow-lg">
+    <div class="flex justify-between items-center max-w-[1400px] mx-auto">
+      <h1 class="text-xl font-bold text-slate-200 m-0">⚙️ Abaque de la Fabrication Distribuée</h1>
+      <div class="flex items-center gap-4">
+        <span class="text-slate-400 text-sm">Logged in as: <strong class="text-slate-200">{{ user.username }}</strong></span>
+        <a href="/logout/" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-all border border-blue-600 hover:shadow-md hover:shadow-blue-500/30">Logout</a>
       </div>
-    {% endfor %}
+    </div>
   </div>
 
-  <div>
-    <table id="data-table" border="1" style="border-collapse:collapse;margin-top:8px;">
-      <thead>
-        <tr><th></th><th>Quantité consommée <br> <em>g / m2 / ml</em></th><th>Temps machine <br> <em>minutes</em></th><th>Temps supplémentaire pour cette opération <br> (mise en place plaque / autres) <br> <em>minutes</em></th><th></th></tr>
-      </thead>
-      <tbody>
-        <!-- start with one empty row -->
-        <tr>
-          <td class="ln"></td>
-          <td><input class="col-qty" value="0.4"/></td>
-          <td><input class="col-tps" value="20"/></td>
-          <td><input class="col-sup" value="10"/></td>
-          <td><button class="del-row">Supprimer la ligne</button></td>
-        </tr>
-      </tbody>
-    </table>
-    <button id="add-row">Ajouter une ligne</button>
-
-    <div style="margin-top:12px;">
-      <label for="number-of-copies">Nombre d'exemplaires :</label>
-      <input type="number" id="number-of-copies" value="1" min="1" style="width: 80px; padding: 4px;" />
-    </div>
-
-    <div style="margin-top:12px;">
-      <strong>Résumé matière</strong>
-      <div style="margin-top:6px; border: 1px solid #ddd; padding: 8px;">
-        <div>Quantité de matière consommée : <strong id="total-material">0</strong></div>
+  <!-- Main Content -->
+  <div class="mt-20 p-5 max-w-[1400px] mx-auto">
+    <!-- Configuration Section -->
+    <div class="mb-8">
+      <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
+        <span>📋</span> Configuration
+      </h2>
+      <div id="choices-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for g in groups %}
+          {% if g.name != "Machine" %}
+          <div class="group bg-slate-800/80 border border-slate-500/20 rounded-lg p-4 transition-all">
+            <label class="block text-slate-100 font-bold text-sm uppercase tracking-wide mb-3">{{ g.name }}</label>
+            <form class="choice-form flex gap-2 items-start" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
+              {% csrf_token %}
+              <input type="hidden" name="group" value="{{ g.id }}">
+              <select name="value" class="flex-1 bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200">
+                {% for opt in g.options %}
+                  {% if opt.name %}
+                    <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
+                      {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
+                    >{{ opt.name }}</option>
+                  {% else %}
+                    <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </form>
+            <button class="edit-options px-3 py-2 bg-slate-700 text-slate-100 border border-slate-700 rounded-md font-medium text-sm hover:bg-slate-600" data-group-id="{{ g.id }}">✏️ Edit</button>
+            <div id="details-{{ g.id }}" class="choice-details text-sm text-slate-400 mt-3"></div>
+          </div>
+          {% endif%}
+        {% endfor %}
       </div>
     </div>
 
-    <div style="margin-top:12px;">
-      <strong>Résumé temps</strong>
-      <div style="margin-top:6px; border: 1px solid #ddd; padding: 8px;">
-        <div>Temps de machine total : <strong id="total-tps">0</strong> minutes</div>
-        <div style="margin-top:6px;">Temps opérateur additionnel: <strong id="total-additional-time">0</strong> minutes</div>
-        <div style="margin-top:6px;">Temps opérateur total : <strong id="total-operator-time">0</strong> minutes, dont <strong id="time-summary-pourcent-temps">0</strong>% du temps de fonctionnement de la machine <strong id="time-summary-machine-name"></strong></div>
+    <!-- Configuration and Data Entry Section -->
+    <div class="mb-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- Machine Selector -->
+      <div class="lg:col-span-1">
+        <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
+          <span>📋</span> Configuration
+        </h2>
+        <div id="choices-list" class="space-y-4">
+          {% for g in groups %}
+            {% if g.name == "Machine" %}
+              <div class="group bg-slate-800/80 border border-slate-500/20 rounded-lg p-4 transition-all">
+                <label class="block text-slate-100 font-bold text-sm uppercase tracking-wide mb-3">{{ g.name }}</label>
+                <form class="choice-form flex gap-2 items-start" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change">
+                  {% csrf_token %}
+                  <input type="hidden" name="group" value="{{ g.id }}">
+                  <select name="value" class="flex-1 bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200">
+                    {% for opt in g.options %}
+                      {% if opt.name %}
+                        <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
+                          {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
+                        >{{ opt.name }}</option>
+                      {% else %}
+                        <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+                </form>
+                <button class="edit-options px-3 py-2 bg-slate-700 text-slate-100 border border-slate-700 rounded-md font-medium text-sm hover:bg-slate-600" data-group-id="{{ g.id }}">✏️ Edit</button>
+                <div id="details-{{ g.id }}" class="choice-details text-sm text-slate-400 mt-3"></div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Data Entry Section -->
+      <div class="lg:col-span-3">
+        <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
+          <span>📊</span> Data Entry
+        </h2>
+        <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5 overflow-x-auto">
+          <table id="data-table" class="w-full border-separate border-spacing-0 text-slate-200">
+            <thead>
+              <tr class="bg-gradient-to-r from-slate-600/30 to-slate-700/30 border-b-2 border-slate-500/30">
+                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">#</th>
+                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Quantity<br><span class="text-xs text-slate-500 font-normal">g / m² / ml</span></th>
+                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Machine Time<br><span class="text-xs text-slate-500 font-normal">minutes</span></th>
+                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Additional Time<br><span class="text-xs text-slate-500 font-normal">minutes</span></th>
+                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-b border-slate-500/15 transition-all hover:bg-blue-500/10">
+                <td class="ln p-3 text-slate-500 font-mono">1</td>
+                <td class="p-3"><input class="col-qty w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition" value="0.4" /></td>
+                <td class="p-3"><input class="col-tps w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition" value="20" /></td>
+                <td class="p-3"><input class="col-sup w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition" value="10" /></td>
+                <td class="p-3"><button class="del-row px-3 py-1 bg-red-500/15 text-red-500 border border-red-500/30 rounded font-medium text-sm hover:bg-red-500/25 hover:border-red-500/60 transition">Delete</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="mt-4">
+            <button id="add-row" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition shadow-sm hover:shadow-md hover:shadow-blue-500/30">+ Add Row</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div style="margin-top:12px;">
-      <strong>Calcul coût brut</strong>
-      <div style="margin-top:6px; border: 1px solid #ddd; padding: 8px;">
-        <div>Coût total matière : <strong id="cost-summary-total-material-cost">0</strong>€ au prix unitaire de <strong id="cost-summary-material-cost">0</strong>€ de <strong id="cost-summary-material-name"></strong></div>
-        <div>Coût location machine : <strong id="cost-summary-total-machine-cost">0</strong>€ au prix unitaire de <strong id="cost-summary-machine-cost">0</strong>€ <strong id="cost-summary-is-adherent"></strong> de <strong id="cost-summary-machine-name"></strong></div>
-        <div>Coût consommable : <strong id="cost-summary-consommable-cost">0</strong>€</div>
-        <div>Coût logiciel : <strong id="cost-summary-software-cost">0</strong>€</div>
-        <div>Coût humain : <strong id="cost-summary-human-cost">0</strong>€ au tarif horaire de <strong id="cost-summary-human-hourly-price">0</strong>€/heure</div>
-        <div>Majoration de la main d'oeuvre pour urgence : <strong id="cost-summary-majoration-cost">0</strong>€ au lieu de <strong id="cost-summary-before-majoration-human-cost">0</strong>€</div>
-        <div>Coût licence : <strong id="cost-summary-license-cost">0</strong>€</div>
-        <div>Contribution au projet associatif : <strong id="cost-summary-asso-contribution">0</strong>€</div>
+    <!-- Number of Copies -->
+    <div class="mb-8">
+      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-4 max-w-[300px]">
+        <label for="number-of-copies" class="block text-indigo-400 font-bold text-sm uppercase tracking-wide mb-3">Nombre d'exemplaires</label>
+        <input type="number" id="number-of-copies" value="1" min="1" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"/>
+      </div>
+    </div>
+
+    <!-- Summaries Section -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
+      <!-- Material Summary -->
+      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
+        <h3 class="text-indigo-400 text-lg mb-4 flex items-center gap-2">
+          <span>🧪</span> Material
+        </h3>
+        <div class="text-slate-400 text-sm mb-2">Total Quantity</div>
+        <div class="text-slate-200 text-2xl font-bold" id="total-material">0</div>
+      </div>
+
+      <!-- Time Summary -->
+      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
+        <h3 class="text-indigo-400 text-lg mb-4 flex items-center gap-2">
+          <span>⏱️</span> Time
+        </h3>
+        <div class="flex justify-between mb-3 pb-3 border-b border-slate-500/20">
+          <span class="text-slate-400">Machine</span>
+          <span class="text-slate-200 font-bold" id="total-tps">0</span>
+        </div>
+        <div class="flex justify-between mb-3 pb-3 border-b border-slate-500/20">
+          <span class="text-slate-400">Additional</span>
+          <span class="text-slate-200 font-bold" id="total-additional-time">0</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-slate-400">Operator Total</span>
+          <span class="text-slate-200 font-bold text-xl" id="total-operator-time">0</span>
+        </div>
+      </div>
+
+      <!-- Final Cost -->
+      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
+        <h3 class="text-indigo-400 text-lg mb-4 flex items-center gap-2">
+          <span>💰</span> Cost
+        </h3>
+        <div class="text-slate-400 text-sm mb-3">Unit Cost</div>
+        <div class="text-green-400 text-2xl font-bold mb-4 pb-4 border-b border-slate-500/20" id="cost-summary-final-cost-unit">0€</div>
+        <div class="text-slate-400 text-sm mb-2">Total Cost</div>
+        <div class="text-green-400 text-3xl font-bold" id="cost-summary-final-cost">0€</div>
+      </div>
+    </div>
+
+    <!-- Detailed Cost Breakdown -->
+    <div class="mb-8">
+      <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
+        <span>📈</span> Cost Breakdown
+      </h2>
+      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-slate-200">
+          <div>
+            <div class="text-slate-400 text-sm mb-1">Material Cost</div>
+            <div class="text-xl font-bold mb-4" id="cost-summary-total-material-cost">0€</div>
+            
+            <div class="text-slate-400 text-sm mb-1">Machine Rental</div>
+            <div class="text-xl font-bold mb-4" id="cost-summary-total-machine-cost">0€</div>
+            
+            <div class="text-slate-400 text-sm mb-1">Consumables</div>
+            <div class="text-xl font-bold mb-4" id="cost-summary-consommable-cost">0€</div>
+            
+            <div class="text-slate-400 text-sm mb-1">Software</div>
+            <div class="text-xl font-bold" id="cost-summary-software-cost">0€</div>
+          </div>
+          <div>
+            <div class="text-slate-400 text-sm mb-1">Labor</div>
+            <div class="text-xl font-bold mb-4" id="cost-summary-human-cost">0€</div>
+            
+            <div class="text-slate-400 text-sm mb-1">Urgency Multiplier</div>
+            <div class="text-xl font-bold mb-4" id="cost-summary-majoration-cost">0€</div>
+            
+            <div class="text-slate-400 text-sm mb-1">License Fee</div>
+            <div class="text-xl font-bold mb-4" id="cost-summary-license-cost">0€</div>
+            
+            <div class="text-slate-400 text-sm mb-1">Asso Contribution</div>
+            <div class="text-xl font-bold" id="cost-summary-asso-contribution">0€</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Save and Load Jobs -->
+    <div class="mb-8">
+      <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
+        <span>💾</span> Job Management
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <!-- Save Section -->
+        <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
+          <h3 class="text-slate-200 font-bold mb-4">Save Current Job</h3>
+          <input id="save-name" placeholder="Job name (optional)" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm mb-3 transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"/>
+          <button id="save-job" class="w-full px-4 py-3 bg-blue-600 text-white border border-blue-600 rounded-md font-medium text-sm hover:bg-blue-700 transition box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2)" onmouseover="this.style.background='rgb(29, 78, 216)'; this.style.boxShadow='0 6px 12px rgba(37, 99, 235, 0.4)'" onmouseout="this.style.background='rgb(37, 99, 235)'; this.style.boxShadow='0 4px 6px rgba(37, 99, 235, 0.2)'">Save Job</button>
+        </div>
         
-        <div><strong>Total unitaire:</strong> <strong id="cost-summary-final-cost-unit">0</strong></div>
-        <div><strong>Total général:</strong> <strong id="cost-summary-final-cost">0</strong></div>
-
-      </div>
-    </div>
-
-
-    <div style="margin-top:12px;">
-      <div style="margin-top:8px;">
-        <input id="save-name" placeholder="Save name (optional)" style="width:30%" />
-        <button id="save-job">Save</button>
-      </div>
-      <div style="margin-top:8px;">
-        <strong>Saved Jobs</strong>
-        <div id="saved-list" style="margin-top:6px;border:1px solid #ddd;padding:8px;max-width:60%"></div>
+        <!-- Load Section -->
+        <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
+          <h3 class="text-slate-200 font-bold mb-4">Saved Jobs</h3>
+          <div id="saved-list" class="max-h-[300px] overflow-y-auto space-y-2"></div>
+        </div>
       </div>
     </div>
   </div>
 
-  <script>
-    // API-based configuration and job management
-    const API_BASE = '/api/';
+  <script src="{% static 'js/app.js' %}"></script>
 
-    // HTMX event listener
-    document.body.addEventListener('htmx:afterRequest', function(evt) {
-      serializeStateToUI();
-      document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
-    });
-
-    // --- API calls for config and jobs ---
-    async function loadConfigurations() {
-      try {
-        const res = await fetch(API_BASE + 'configurations/');
-        if (!res.ok) throw new Error('Failed to load configurations');
-        return await res.json(); // {gid: [options]}
-      } catch (e) {
-        console.error('Load config error:', e);
-        return {};
-      }
-    }
-
-    async function saveConfigurations(configMap) {
-      try {
-        const res = await fetch(API_BASE + 'configurations/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(configMap)
-        });
-        return res.ok;
-      } catch (e) {
-        console.error('Save config error:', e);
-        return false;
-      }
-    }
-
-    async function loadSavedJobs() {
-      try {
-        const res = await fetch(API_BASE + 'saved-jobs/');
-        if (!res.ok) throw new Error('Failed to load jobs');
-        return await res.json(); // [{id, name, state_json, created_at}, ...]
-      } catch (e) {
-        console.error('Load jobs error:', e);
-        return [];
-      }
-    }
-
-    async function saveNewJob(name, stateId, state) {
-      try {
-        const res = await fetch(API_BASE + 'saved-jobs/', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, state_id: stateId, state })
-        });
-        return res.ok ? await res.json() : null;
-      } catch (e) {
-        console.error('Save job error:', e);
-        return null;
-      }
-    }
-
-    async function deleteJob(jobId) {
-      try {
-        const res = await fetch(API_BASE + `saved-jobs/${jobId}/delete/`, { method: 'DELETE' });
-        return res.ok;
-      } catch (e) {
-        console.error('Delete job error:', e);
-        return false;
-      }
-    }
-
-    // In-memory cache for configurations
-    let configCache = {};
-
-    async function getConfigurationCache() {
-      if (Object.keys(configCache).length === 0) {
-        configCache = await loadConfigurations();
-      }
-      return configCache;
-    }
-
-    function extractOptionsFromSelect(form) {
-      const select = form.querySelector('select[name="value"]');
-      if (!select) return [];
-      const options = [];
-      for (let i = 1; i < select.options.length; i++) {
-        const opt = select.options[i];
-        const obj = { name: opt.value };
-        for (const k in opt.dataset) {
-          obj[k] = opt.dataset[k];
-        }
-        options.push(obj);
-      }
-      return options;
-    }
-
-    async function getOptionsForGroup(form) {
-      const gid = String(form.dataset.groupId);
-      const cache = await getConfigurationCache();
-      if (cache[gid]) return cache[gid];
-      return extractOptionsFromSelect(form);
-    }
-
-    function populateSelectFromOptions(form, opts) {
-      const sel = form.querySelector('select[name="value"]');
-      if (!sel) return;
-      const cur = sel.value;
-      sel.innerHTML = '';
-      const optPlaceholder = document.createElement('option');
-      optPlaceholder.value = '';
-      optPlaceholder.textContent = '-- choose --';
-      sel.appendChild(optPlaceholder);
-      (opts || []).forEach(o => {
-        const el = document.createElement('option');
-        el.value = o.name || '';
-        el.textContent = o.name || '';
-        Object.keys(o).forEach(k => {
-          if (k === 'name') return;
-          el.dataset[k] = o[k];
-        });
-        sel.appendChild(el);
-      });
-      if (cur) {
-        try {
-          sel.value = cur;
-        } catch (e) {}
-      }
-    }
-
-    // --- Modal editor with API persistence ---
-    let modalState = { groupId: null, keys: [] };
-    const modal = document.createElement('div');
-    modal.id = 'options-modal';
-    modal.style.display = 'none';
-    modal.style.position = 'fixed';
-    modal.style.left = 0;
-    modal.style.top = 0;
-    modal.style.right = 0;
-    modal.style.bottom = 0;
-    modal.style.background = 'rgba(0,0,0,0.4)';
-    modal.style.zIndex = 9999;
-    modal.innerHTML = `
-      <div style="position:relative;width:90%;max-width:900px;margin:40px auto;background:#fff;padding:16px;border-radius:6px;">
-        <h3 id="modal-title">Edit Options</h3>
-        <div style="margin-bottom:8px;"><label>Add property: <input id="modal-new-prop" placeholder="property_name"/> <button id="modal-add-prop">Add</button></label></div>
-        <div id="modal-rows" style="max-height:50vh;overflow:auto;border:1px solid #eee;padding:8px;margin-bottom:8px;"></div>
-        <div style="text-align:right;"><button id="modal-save">Save</button> <button id="modal-cancel">Cancel</button></div>
-      </div>`;
-    document.body.appendChild(modal);
-
-    async function openOptionsModal(gid) {
-      modalState.groupId = String(gid);
-      const form = document.querySelector(`.choice-form[data-group-id="${gid}"]`);
-      const opts = await getOptionsForGroup(form) || [];
-      const keys = unionKeysGeneric(opts);
-      modalState.keys = keys;
-      renderModal(opts, keys, form);
-      modal.style.display = 'block';
-    }
-
-    function closeModal() {
-      modal.style.display = 'none';
-      modalState = { groupId: null, keys: [] };
-    }
-
-    function renderModal(opts, keys, form) {
-      document.getElementById('modal-title').textContent = 'Edit options for ' + (form ? form.dataset.groupName : modalState.groupId);
-      const rowsWrap = document.getElementById('modal-rows');
-      rowsWrap.innerHTML = '';
-      const header = document.createElement('div');
-      header.style.display = 'flex';
-      header.style.fontWeight = 'bold';
-      header.style.gap = '6px';
-      const hn = document.createElement('div');
-      hn.textContent = 'Name';
-      hn.style.flex = '1';
-      header.appendChild(hn);
-      keys.forEach(k => {
-        const hk = document.createElement('div');
-        hk.textContent = prettyKey(k);
-        hk.style.flex = '1';
-        const rm = document.createElement('button');
-        rm.textContent = '×';
-        rm.title = 'Remove property';
-        rm.style.marginLeft = '6px';
-        rm.addEventListener('click', () => {
-          removePropertyKey(k);
-        });
-        hk.appendChild(rm);
-        header.appendChild(hk);
-      });
-      header.appendChild(document.createElement('div'));
-      rowsWrap.appendChild(header);
-      (opts || []).forEach(o => rowsWrap.appendChild(buildModalRow(o, keys)));
-      const foot = document.createElement('div');
-      foot.style.marginTop = '8px';
-      const addRowBtn = document.createElement('button');
-      addRowBtn.textContent = 'Add option';
-      addRowBtn.addEventListener('click', () => {
-        rowsWrap.appendChild(buildModalRow({}, modalState.keys));
-      });
-      foot.appendChild(addRowBtn);
-      rowsWrap.appendChild(foot);
-    }
-
-    function buildModalRow(opt, keys) {
-      const row = document.createElement('div');
-      row.style.display = 'flex';
-      row.style.gap = '6px';
-      row.style.marginTop = '6px';
-      const inpName = document.createElement('input');
-      inpName.placeholder = 'Name';
-      inpName.style.flex = '1';
-      inpName.value = opt && opt.name ? opt.name : '';
-      row.appendChild(inpName);
-      keys.forEach(k => {
-        const inp = document.createElement('input');
-        inp.placeholder = prettyKey(k);
-        inp.style.flex = '1';
-        inp.value = opt && opt[k] !== undefined ? String(opt[k]) : '';
-        inp.dataset.key = k;
-        row.appendChild(inp);
-      });
-      const del = document.createElement('button');
-      del.textContent = 'Delete';
-      del.addEventListener('click', e => {
-        e.preventDefault();
-        row.remove();
-      });
-      row.appendChild(del);
-      return row;
-    }
-
-    function removePropertyKey(key) {
-      modalState.keys = modalState.keys.filter(k => k !== key);
-      const rowsWrap = document.getElementById('modal-rows');
-      const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0);
-      const current = rows.map(r => {
-        const name = r.querySelector('input[placeholder="Name"]').value;
-        const obj = { name };
-        modalState.keys.forEach(k => {
-          const inp = r.querySelector(`input[data-key="${k}"]`);
-          if (inp) obj[k] = tryParseNumber(inp.value);
-        });
-        return obj;
-      });
-      const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
-      renderModal(current, modalState.keys, form);
-    }
-
-    function unionKeysGeneric(opts) {
-      const s = new Set();
-      (opts || []).forEach(o => {
-        if (o && typeof o === 'object') {
-          Object.keys(o).forEach(k => {
-            if (k !== 'name') s.add(k);
-          });
-        }
-      });
-      return Array.from(s);
-    }
-
-    function tryParseNumber(v) {
-      if (v === undefined) return v;
-      const n = parseFloat(v);
-      return isNaN(n) ? v : n;
-    }
-
-    document.getElementById('modal-add-prop').addEventListener('click', async () => {
-      const v = document.getElementById('modal-new-prop').value.trim();
-      if (!v) return alert('Enter property name');
-      if (modalState.keys.includes(v)) return alert('Property already present');
-      modalState.keys.push(v);
-      const rowsWrap = document.getElementById('modal-rows');
-      const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0).map(r => {
-        const name = r.querySelector('input[placeholder="Name"]').value;
-        const obj = { name };
-        modalState.keys.forEach(k => {
-          const inp = r.querySelector(`input[data-key="${k}"]`);
-          if (inp) obj[k] = tryParseNumber(inp.value);
-        });
-        return obj;
-      });
-      const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
-      renderModal(rows, modalState.keys, form);
-      document.getElementById('modal-new-prop').value = '';
-    });
-
-    document.getElementById('modal-cancel').addEventListener('click', () => {
-      closeModal();
-    });
-
-    document.getElementById('modal-save').addEventListener('click', async () => {
-      const rowsWrap = document.getElementById('modal-rows');
-      const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0);
-      const parsed = rows.map(r => {
-        const name = r.querySelector('input[placeholder="Name"]').value.trim();
-        const obj = { name };
-        modalState.keys.forEach(k => {
-          const inp = r.querySelector(`input[data-key="${k}"]`);
-          if (inp) {
-            const v = inp.value.trim();
-            if (v !== '') obj[k] = tryParseNumber(v);
-          }
-        });
-        return obj;
-      }).filter(o => o.name);
-
-      // Save to server
-      configCache[String(modalState.groupId)] = parsed;
-      const success = await saveConfigurations(configCache);
-      
-      if (success) {
-        const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
-        populateSelectFromOptions(form, parsed);
-        closeModal();
-        alert('Options saved');
-      } else {
-        alert('Error saving options');
-      }
-    });
-
-    document.querySelectorAll('.edit-options').forEach(b => b.addEventListener('click', (e) => {
-      openOptionsModal(b.dataset.groupId);
-    }));
-
-    // --- Saved jobs management (API-based) ---
-    async function populateSavedList() {
-      const wrap = document.getElementById('saved-list');
-      const jobs = await loadSavedJobs();
-      if (!wrap) return;
-      if (jobs.length === 0) {
-        wrap.innerHTML = '<div style="color:#666">No saved jobs</div>';
-        return;
-      }
-      wrap.innerHTML = '';
-      jobs.slice().reverse().forEach(j => {
-        const el = document.createElement('div');
-        el.style.display = 'flex';
-        el.style.alignItems = 'center';
-        el.style.justifyContent = 'space-between';
-        el.style.marginBottom = '6px';
-        const left = document.createElement('div');
-        left.textContent = j.name + ' — ' + new Date(j.created_at).toLocaleString();
-        left.style.flex = '1';
-        const btns = document.createElement('div');
-        const load = document.createElement('button');
-        load.textContent = 'Load';
-        load.addEventListener('click', () => {
-          applyState(j.state_json);
-          serializeStateToUI();
-          updateAllDetailsAndSummary();
-        });
-        const del = document.createElement('button');
-        del.textContent = 'Delete';
-        del.style.marginLeft = '6px';
-        del.addEventListener('click', async () => {
-          const ok = await deleteJob(j.id);
-          if (ok) populateSavedList();
-        });
-        const exp = document.createElement('button');
-        exp.textContent = 'Export';
-        exp.style.marginLeft = '6px';
-        exp.addEventListener('click', () => {
-          exportJobs([j]);
-        });
-        btns.appendChild(load);
-        btns.appendChild(del);
-        btns.appendChild(exp);
-        el.appendChild(left);
-        el.appendChild(btns);
-        wrap.appendChild(el);
-      });
-    }
-
-    function exportJobs(list) {
-      const blob = new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'saved_jobs.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    document.getElementById('save-job').addEventListener('click', async (e) => {
-      e.preventDefault();
-      const name = document.getElementById('save-name').value.trim() || 'Job ' + new Date().toLocaleString();
-      const id = serializeStateToUI();
-      const state = buildState();
-      const job = await saveNewJob(name, id, state);
-      if (job) {
-        document.getElementById('save-name').value = '';
-        populateSavedList();
-        alert('Saved');
-      } else {
-        alert('Error saving job');
-      }
-    });
-
-
-    function updateAllDetailsAndSummary() {
-      document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
-    }
-
-    // Table handling (unchanged)
-    function updateLineNumbers() {
-      const rows = document.querySelectorAll('#data-table tbody tr');
-      rows.forEach((r, i) => r.querySelector('.ln').textContent = i + 1);
-    }
-
-    function addRow(qty = '', tps = '', sup = 0) {
-      const tbody = document.querySelector('#data-table tbody');
-      const tr = document.createElement('tr');
-      tr.innerHTML = `<td class="ln"></td><td><input class="col-qty" value="${escapeHtml(qty)}"/></td><td><input class="col-tps" value="${escapeHtml(tps)}"/></td><td><input class="col-sup" value="${escapeHtml(sup)}"/></td><td><button class="del-row">Supprimer la ligne</button></td>`;
-      tbody.appendChild(tr);
-      attachRowHandlers(tr);
-      updateLineNumbers();
-      updateSummary();
-      serializeStateToUI();
-    }
-
-    function escapeHtml(s) {
-      return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    function attachRowHandlers(tr) {
-      tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
-        updateSummary();
-        serializeStateToUI();
-      }));
-      tr.querySelector('.del-row').addEventListener('click', (e) => {
-        e.preventDefault();
-        tr.remove();
-        updateLineNumbers();
-        updateSummary();
-        serializeStateToUI();
-      });
-    }
-
-    document.getElementById('add-row').addEventListener('click', function (e) {
-      e.preventDefault();
-      addRow();
-    });
-
-    document.querySelectorAll('#data-table tbody tr').forEach(tr => attachRowHandlers(tr));
-    updateLineNumbers();
-
-    // function computeResult() {
-    //   const vals = Array.from(document.querySelectorAll('.col-sup')).map(i => parseFloat(i.value) || 0);
-    //   const sum = vals.reduce((a, b) => a + b, 0);
-    //   let multiplier = 1;
-    //   const qualitySelect = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Quality' || f.dataset.groupId === '5');
-    //   if (qualitySelect) {
-    //     const v = qualitySelect.querySelector('select[name="value"]').value;
-    //     if (v === 'Low') multiplier = 0.8;
-    //     else if (v === 'Medium') multiplier = 1.0;
-    //     else if (v === 'High') multiplier = 1.2;
-    //   }
-    //   let materialPrice = 1;
-    //   const materialForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Matière' || f.dataset.groupId === '2');
-    //   if (materialForm) {
-    //     const sel = materialForm.querySelector('select[name="value"]');
-    //     if (sel && sel.selectedOptions && sel.selectedOptions[0]) {
-    //       const ds = sel.selectedOptions[0].dataset || {};
-    //       for (const k in ds) {
-    //         if (/price/i.test(k)) {
-    //           const p = parseFloat(ds[k]);
-    //           if (!isNaN(p)) {
-    //             materialPrice = p;
-    //             break;
-    //           }
-    //         }
-    //       }
-    //     }
-    //   }
-    //   const result = (sum * materialPrice * multiplier).toFixed(2);
-    //   document.getElementById('computed-result').textContent = result;
-    //   updateSummary();
-    //   return result;
-    // }
-
-    function updateSummary() {
-    // Find current selections and get values for groups
-      const machineForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Machine');
-      const materialForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Matière');
-      const adherentForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Tarifs adhérent pour les machines');
-      const consommableForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Consommable');
-      const softwareForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Logiciel de modélisation');
-      const prestationForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de prestation');
-      const licenseForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de licence');
-      const majorationForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Majoration pour urgence, déplacements...');
-      const contribitionForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Contribution au projet asso');
-
-
-      // Calculate total material (sum of col-qty) * prix
-      const qtyValues = Array.from(document.querySelectorAll('.col-qty')).map(i => parseFloat(i.value) || 0);
-      const totalQty = qtyValues.reduce((a, b) => a + b, 0);
-      
-      const materialPrice = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix : 0;
-      const materialName = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
-
-      const materialCost = (totalQty * materialPrice).toFixed(2);
-      document.getElementById('total-material').textContent = totalQty;
-      document.getElementById('cost-summary-total-material-cost').textContent = materialCost;
-      document.getElementById('cost-summary-material-cost').textContent = materialPrice;
-      document.getElementById('cost-summary-material-name').textContent = materialName;
-      
-      // Calculate total operating time (sum of col-tps)
-      const tpsValues = Array.from(document.querySelectorAll('.col-tps')).map(i => parseFloat(i.value) || 0);
-      const totalTps = tpsValues.reduce((a, b) => a + b, 0).toFixed(2);
-      document.getElementById('total-tps').textContent = totalTps;
-        
-      // Calculate total additional operator time (sum of col-sup)
-      const supValues = Array.from(document.querySelectorAll('.col-sup')).map(i => parseFloat(i.value) || 0);
-      const totalAdditionalTime = supValues.reduce((a, b) => a + b, 0).toFixed(2);
-      document.getElementById('total-additional-time').textContent = totalAdditionalTime;
-      
-      // Get operator time percentage for machine
-      const machinePercentTimeForOperator = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcent_temps || 0 : 0;
-      const machineName = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
-
-      // Total operator time = (tps * pourcent_temps / 100) + additional time
-      const finalOperatorTime = (parseFloat(totalTps * machinePercentTimeForOperator / 100) + parseFloat(totalAdditionalTime)).toFixed(2);
-      document.getElementById('time-summary-pourcent-temps').textContent = machinePercentTimeForOperator;
-      document.getElementById('time-summary-machine-name').textContent = machineName;
-      document.getElementById('total-operator-time').textContent = finalOperatorTime;
-
-      // Calculate machine cost if machine has prix and totalTps
-      const machinePriceNormal = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_normal : 1;
-      const machinePriceAdherent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_adherent : 1;
-      const is_adherent = adherentForm.querySelector('select[name="value"]').selectedOptions[0].value == "Oui" ? true : false;
-      const machinePrice = is_adherent ? machinePriceAdherent : machinePriceNormal;
-      const machineCost = (parseFloat(totalTps) * parseFloat(machinePrice)).toFixed(2);
-      document.getElementById('cost-summary-total-machine-cost').textContent = machineCost;
-      document.getElementById('cost-summary-machine-cost').textContent = machinePrice;
-      document.getElementById('cost-summary-machine-name').textContent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
-      document.getElementById('cost-summary-is-adherent').textContent = is_adherent ? "(Tarif adhérent)" : "";
-      
-      // Calculate consommable cost
-      const consumablePrice = consommableForm ? consommableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
-      const consumableLifetime = consommableForm ? consommableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.duree_vie_totale_minutes || 0 : 0;
-
-      const consumableCost = (totalTps * consumablePrice / consumableLifetime).toFixed(2);
-      document.getElementById('cost-summary-consommable-cost').textContent = consumableCost;
-
-      const softwareMonthlyPrice = softwareForm ? softwareForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_mensuel || 0 : 0;
-      const softwareCost = (softwareMonthlyPrice * (totalTps / (30 * 24 * 60))).toFixed(2);
-      document.getElementById('cost-summary-software-cost').textContent = softwareCost;
-
-      const humanHourlyPrice = prestationForm ? prestationForm.querySelector('select[name="value"]').selectedOptions[0].dataset.taux_horaire || 0 : 0;
-      document.getElementById('cost-summary-human-hourly-price').textContent = humanHourlyPrice;
-      const humanCost = (humanHourlyPrice * totalTps / 60).toFixed(2);
-      document.getElementById('cost-summary-human-cost').textContent = humanCost;
-
-
-      const licenseCost = licenseForm ? licenseForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
-      document.getElementById('cost-summary-license-cost').textContent = licenseCost;
-
-      const grossCost = (parseFloat(materialCost) + parseFloat(machineCost) + parseFloat(consumableCost) + parseFloat(softwareCost) + parseFloat(humanCost) + parseFloat(licenseCost)).toFixed(2);
-    //   document.getElementById('cost-summary-gross-cost').textContent = grossCost;
-
-
-      const majorationRate = majorationForm ? majorationForm.querySelector('select[name="value"]').selectedOptions[0].dataset.majoration_coef || 0 : 0;
-      document.getElementById('cost-summary-majoration-cost').textContent = (parseFloat(majorationRate) * parseFloat(humanCost)).toFixed(2);
-      document.getElementById('cost-summary-before-majoration-human-cost').textContent = humanCost;
-
-      const additionalContribution = contribitionForm ? contribitionForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcentage_contribution || 0 : 0;
-      document.getElementById('cost-summary-asso-contribution').textContent = (parseFloat(additionalContribution) * parseFloat(grossCost)).toFixed(2);
-      
-
-
-      // FINAL COST
-      const finalCost = (parseFloat(grossCost) - parseFloat(humanCost) + parseFloat(majorationRate) * parseFloat(humanCost) + parseFloat(additionalContribution) * parseFloat(grossCost)).toFixed(2);
-      const numberOfCopies = parseInt(document.getElementById('number-of-copies').value) || 1;
-      document.getElementById('cost-summary-final-cost-unit').textContent = finalCost;
-      document.getElementById('cost-summary-final-cost').textContent = (parseFloat(finalCost) * numberOfCopies).toFixed(2);
-
-
-    }
-
-    function prettyKey(k) {
-      return k.replace(/[_-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    }
-
-    function updateChoiceDetails(form) {
-      if (!form) return;
-      const gid = form.dataset.groupId;
-      const detailsEl = document.getElementById('details-' + gid);
-      if (!detailsEl) return;
-      const sel = form.querySelector('select[name="value"]');
-      if (!sel) {
-        detailsEl.innerHTML = '';
-        return;
-      }
-      const opt = sel.selectedOptions && sel.selectedOptions[0];
-      if (!opt || !opt.value) {
-        detailsEl.innerHTML = '';
-        return;
-      }
-      
-      const optionName = opt.value;
-      const ds = opt.dataset || {};
-      const properties = [];
-      for (const k in ds) {
-        if (!Object.prototype.hasOwnProperty.call(ds, k)) continue;
-        const v = ds[k];
-        if (v === undefined || v === null || String(v).trim() === '') continue;
-        properties.push({ key: prettyKey(k), value: v });
-      }
-      
-      // Build table HTML
-      let html = `<table style="border-collapse: collapse; font-size: 0.85em; margin-top: 6px; width: 100%;">`;
-      html += `<tr style="background-color: #f0f0f0;"><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">Choix</td><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">${optionName}</td></tr>`;
-    //   html += `<tr><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">Selected</td><td style="border: 1px solid #ddd; padding: 4px 6px;">${optionName}</td></tr>`;
-      
-      properties.forEach(prop => {
-        html += `<tr><td style="border: 1px solid #ddd; padding: 4px 6px;">${prop.key}</td><td style="border: 1px solid #ddd; padding: 4px 6px;">${prop.value}</td></tr>`;
-      });
-      
-      html += `</table>`;
-      detailsEl.innerHTML = html;
-    }
-
-    // State serialization (unchanged)
-    function buildState() {
-      const choices = {};
-      document.querySelectorAll('.choice-form').forEach(f => {
-        const id = f.dataset.groupId;
-        const val = f.querySelector('select[name="value"]').value;
-        choices[id] = val;
-      });
-      const rows = Array.from(document.querySelectorAll('#data-table tbody tr')).map(tr => ({
-        qty: tr.querySelector('.col-qty').value,
-        tps: tr.querySelector('.col-tps').value,
-        sup: tr.querySelector('.col-sup').value
-      }));
-      return { choices, rows };
-    }
-
-    function base64UrlEncode(str) {
-      return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    function serializeStateToUI() {
-      const state = buildState();
-      const s = JSON.stringify(state);
-      const id = base64UrlEncode(s);
-      return id;
-    }
-
-    function applyState(obj) {
-      if (!obj) return;
-      Object.keys(obj.choices || {}).forEach(id => {
-        const form = document.querySelector(`.choice-form[data-group-id="${id}"]`);
-        if (form) {
-          const sel = form.querySelector('select[name="value"]');
-          if (sel) sel.value = obj.choices[id];
-          if (sel) sel.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-      });
-      const tbody = document.querySelector('#data-table tbody');
-      tbody.innerHTML = '';
-      (obj.rows || []).forEach(r => addRow(r.qty, r.tps, r.sup));
-      if ((obj.rows || []).length === 0) addRow();
-      updateSummary();
-    }
-
-    document.querySelectorAll('.choice-form select').forEach(s => s.addEventListener('change', (e) => {
-      const f = s.closest('.choice-form');
-      serializeStateToUI();
-      updateChoiceDetails(f);
-      updateSummary();
-    }));
-
-    document.getElementById('number-of-copies').addEventListener('change', () => {
-      serializeStateToUI();
-      updateSummary();
-    });
-
-    // Initialization on load
-    window.addEventListener('load', async () => {
-      populateSavedList();
-      updateSummary();
-      serializeStateToUI();
-      document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
-    });
-  </script>
 {% endblock %}
