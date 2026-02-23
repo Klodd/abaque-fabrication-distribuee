@@ -235,6 +235,9 @@ function renderModal(opts, keys, form) {
   const hn = document.createElement('div');
   hn.textContent = 'Name';
   hn.style.flex = '1';
+  hn.style.display = 'flex';
+  hn.style.alignItems = 'center';
+  hn.style.justifyContent = 'space-between';
   header.appendChild(hn);
   
   keys.forEach(k => {
@@ -242,6 +245,7 @@ function renderModal(opts, keys, form) {
     hk.style.flex = '1';
     hk.style.display = 'flex';
     hk.style.alignItems = 'center';
+    hk.style.width = '200px';
     hk.style.justifyContent = 'space-between';
     const span = document.createElement('span');
     span.textContent = prettyKey(k);
@@ -265,6 +269,14 @@ function renderModal(opts, keys, form) {
     hk.appendChild(rm);
     header.appendChild(hk);
   });
+
+    const filldiv = document.createElement('div');
+    filldiv.style.padding = '32px';
+    filldiv.textContent = '';
+
+
+    header.appendChild(filldiv); // for fill
+
   
   rowsWrap.appendChild(header);
   (opts || []).forEach(o => rowsWrap.appendChild(buildModalRow(o, keys)));
@@ -369,7 +381,7 @@ function buildModalRow(opt, keys) {
   });
   
   const del = document.createElement('button');
-  del.textContent = 'Delete';
+  del.textContent = 'Retirer';
   del.style.padding = '8px 12px';
   del.style.background = 'rgba(239, 68, 68, 0.1)';
   del.style.color = 'rgb(239, 68, 68)';
@@ -504,7 +516,7 @@ async function populateSavedList() {
   const jobs = await loadSavedJobs();
   if (!wrap) return;
   if (jobs.length === 0) {
-    wrap.innerHTML = '<div style="color:#666">No saved jobs</div>';
+    wrap.innerHTML = '<div style="color:oklch(96.8% 0.007 247.896)">Aucun projet sauvegardé</div>';
     return;
   }
   wrap.innerHTML = '';
@@ -513,51 +525,49 @@ async function populateSavedList() {
     el.style.display = 'flex';
     el.style.alignItems = 'center';
     el.style.justifyContent = 'space-between';
-    el.style.marginBottom = '6px';
+    el.style.paddingBottom = '6px';
+    el.style.borderBottom = '1px solid rgb(34 197 94 / 0.2)';
     const left = document.createElement('div');
     left.textContent = j.name + ' — ' + new Date(j.created_at).toLocaleString();
     left.style.flex = '1';
     const btns = document.createElement('div');
     const load = document.createElement('button');
-    load.textContent = 'Load';
+    load.classList.add('button-green');
+    load.textContent = 'Importer job';
     load.addEventListener('click', () => {
       applyState(j.state_json);
       serializeStateToUI();
       updateAllDetailsAndSummary();
+      updateSummary();
     });
     const del = document.createElement('button');
-    del.textContent = 'Delete';
+    del.textContent = 'Supprimer';
     del.style.marginLeft = '6px';
+    del.classList.add('button-red');
     del.addEventListener('click', async () => {
       const ok = await deleteJob(j.id);
       if (ok) populateSavedList();
     });
-    const exp = document.createElement('button');
-    exp.textContent = 'Export';
-    exp.style.marginLeft = '6px';
-    exp.addEventListener('click', () => {
-      exportJobs([j]);
-    });
+    
     btns.appendChild(load);
     btns.appendChild(del);
-    btns.appendChild(exp);
     el.appendChild(left);
     el.appendChild(btns);
     wrap.appendChild(el);
   });
 }
 
-function exportJobs(list) {
-  const blob = new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = 'saved_jobs.json';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
+// function exportJobs(list) {
+//   const blob = new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' });
+//   const url = URL.createObjectURL(blob);
+//   const a = document.createElement('a');
+//   a.href = url;
+//   a.download = 'saved_jobs.json';
+//   document.body.appendChild(a);
+//   a.click();
+//   a.remove();
+//   URL.revokeObjectURL(url);
+// }
 
 document.getElementById('save-job').addEventListener('click', async (e) => {
   e.preventDefault();
@@ -587,7 +597,14 @@ function updateLineNumbers() {
 function addRow(qty = '', tps = '', sup = 0) {
   const tbody = document.querySelector('#data-table tbody');
   const tr = document.createElement('tr');
-  tr.innerHTML = `<td class="ln"></td><td><input class="col-qty" value="${escapeHtml(qty)}"/></td><td><input class="col-tps" value="${escapeHtml(tps)}"/></td><td><input class="col-sup" value="${escapeHtml(sup)}"/></td><td><button class="del-row">Supprimer la ligne</button></td>`;
+  tr.classList.add('border-b');
+  tr.classList.add('border-slate-500/15');
+  tr.classList.add('transition-all');
+  tr.classList.add('hover:bg-blue-500/10');
+  tr.innerHTML = `<td class="ln p-3 text-slate-500 font-mono"></td><td class="p-3"><input class="col-qty w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400" value="${escapeHtml(qty)}"/></td><td class="p-3"><input class="col-tps w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400" value="${escapeHtml(tps)}"/></td><td class="p-3"><input class="col-sup w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400" value="${escapeHtml(sup)}"/></td><td class="p-3"><button class="del-row px-3 py-1 bg-red-500/15 text-red-500 border border-red-500/30 rounded font-medium text-sm hover:bg-red-500/25 hover:border-red-500/60 transition">Retirer</button></td>`;
+
+
+
   tbody.appendChild(tr);
   attachRowHandlers(tr);
   updateLineNumbers();
@@ -626,7 +643,7 @@ function updateSummary() {
   const machineForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Machine');
   const materialForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Matière');
   const adherentForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Tarifs adhérent pour les machines');
-  const consommableForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Consommable');
+  const consumableForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Consommable');
   const softwareForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Logiciel de modélisation');
   const prestationForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de prestation');
   const licenseForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de licence');
@@ -644,17 +661,17 @@ function updateSummary() {
   document.getElementById('total-material').textContent = totalQty;
   document.getElementById('cost-summary-total-material-cost').textContent = materialCost;
 //   document.getElementById('cost-summary-material-cost').textContent = materialPrice;
-//   document.getElementById('cost-summary-material-name').textContent = materialName;
+  document.getElementById('material-name').textContent = materialName;
   
   // Calculate total operating time (sum of col-tps)
   const tpsValues = Array.from(document.querySelectorAll('.col-tps')).map(i => parseFloat(i.value) || 0);
   const totalTps = tpsValues.reduce((a, b) => a + b, 0).toFixed(2);
-  document.getElementById('total-tps').textContent = totalTps;
+  document.getElementById('total-tps').textContent = parseFloat(totalTps).toFixed(0);
   
   // Calculate total additional operator time (sum of col-sup)
   const supValues = Array.from(document.querySelectorAll('.col-sup')).map(i => parseFloat(i.value) || 0);
   const totalAdditionalTime = supValues.reduce((a, b) => a + b, 0).toFixed(2);
-  document.getElementById('total-additional-time').textContent = totalAdditionalTime;
+  document.getElementById('total-additional-time').textContent = parseFloat(totalAdditionalTime).toFixed(0);
   
   // Get operator time percentage for machine
   const machinePercentTimeForOperator = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcent_temps || 0 : 0;
@@ -662,9 +679,9 @@ function updateSummary() {
 
   // Total operator time = (tps * pourcent_temps / 100) + additional time
   const finalOperatorTime = (parseFloat(totalTps * machinePercentTimeForOperator / 100) + parseFloat(totalAdditionalTime)).toFixed(2);
-// document.getElementById('time-summary-pourcent-temps').textContent = machinePercentTimeForOperator;
-// document.getElementById('time-summary-machine-name').textContent = machineName;
-  document.getElementById('total-operator-time').textContent = finalOperatorTime;
+  document.getElementById('time-summary-pourcent-temps').textContent = parseFloat(machinePercentTimeForOperator).toFixed(0);
+  document.getElementById('time-summary-machine-name').textContent = machineName;
+  document.getElementById('total-operator-time').textContent = parseFloat(finalOperatorTime).toFixed(0);
 
   // Calculate machine cost if machine has prix and totalTps
   const machinePriceNormal = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_normal : 1;
@@ -673,28 +690,32 @@ function updateSummary() {
   const machinePrice = is_adherent ? machinePriceAdherent : machinePriceNormal;
   const machineCost = (parseFloat(totalTps) * parseFloat(machinePrice)).toFixed(2);
   document.getElementById('cost-summary-total-machine-cost').textContent = machineCost;
-//   document.getElementById('cost-summary-machine-cost').textContent = machinePrice;
+  document.getElementById('cost-summary-machine-cost').textContent = machinePrice;
 //   document.getElementById('cost-summary-machine-name').textContent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
 //   document.getElementById('cost-summary-is-adherent').textContent = is_adherent ? "(Tarif adhérent)" : "";
   
   // Calculate consommable cost
-  const consumablePrice = consommableForm ? consommableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
-  const consumableLifetime = consommableForm ? consommableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.duree_vie_totale_minutes || 0 : 0;
+  const consumablePrice = consumableForm ? consumableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
+  const consumableLifetime = consumableForm ? consumableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.duree_vie_totale_minutes || 0 : 0;
 
   const consumableCost = (totalTps * consumablePrice / consumableLifetime).toFixed(2);
-  document.getElementById('cost-summary-consommable-cost').textContent = consumableCost;
+  document.getElementById('cost-summary-consumable-cost').textContent = consumableCost;
+  document.getElementById('cost-summary-consumable-per-min').textContent = parseFloat(consumablePrice / consumableLifetime).toFixed(2);
 
   const softwareMonthlyPrice = softwareForm ? softwareForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_mensuel || 0 : 0;
   const softwareCost = (softwareMonthlyPrice * (totalTps / (30 * 24 * 60))).toFixed(2);
+  const softwareCostPerMin = (softwareMonthlyPrice / (30 * 24 * 60)).toFixed(2);
+  document.getElementById('cost-summary-software-cost-per-min').textContent = softwareCostPerMin;
   document.getElementById('cost-summary-software-cost').textContent = softwareCost;
 
   const humanHourlyPrice = prestationForm ? prestationForm.querySelector('select[name="value"]').selectedOptions[0].dataset.taux_horaire || 0 : 0;
-//   document.getElementById('cost-summary-human-hourly-price').textContent = humanHourlyPrice;
+  document.getElementById('cost-summary-human-hourly-price').textContent = parseFloat(humanHourlyPrice).toFixed(0);
   const humanCost = (humanHourlyPrice * totalTps / 60).toFixed(2);
   document.getElementById('cost-summary-human-cost').textContent = humanCost;
 
   const licenseCost = licenseForm ? licenseForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
   document.getElementById('cost-summary-license-cost').textContent = licenseCost;
+  document.getElementById('cost-summary-license-name').textContent = licenseForm ? licenseForm.querySelector('select[name="value"]').selectedOptions[0].value : '';
 
   const grossCost = (parseFloat(materialCost) + parseFloat(machineCost) + parseFloat(consumableCost) + parseFloat(softwareCost) + parseFloat(humanCost) + parseFloat(licenseCost)).toFixed(2);
 
@@ -743,11 +764,11 @@ function updateChoiceDetails(form) {
   }
   
   // Build table HTML
-  let html = `<table style="border-collapse: collapse; font-size: 0.85em; margin-top: 6px; width: 100%;">`;
-  html += `<tr style="background-color: #f0f0f0;"><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">Choix</td><td style="border: 1px solid #ddd; padding: 4px 6px; font-weight: bold;">${optionName}</td></tr>`;
+  let html = `<table style="border-collapse: collapse; font-size: 0.85em; margin-top: 6px; width: 100%; color:oklch(96.8% 0.007 247.896)">`;
+  html += `<tr style="background-color: oklch(26.6% 0.065 152.934);"><td style="border: 1px solid oklch(27.9% 0.041 260.031); border-bottom:3px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; font-weight: bold;">Choix</td><td style="border: 1px solid oklch(27.9% 0.041 260.031); border-bottom: 3px solid oklch(27.9% 0.041 260.031); padding: 4px 6px;">${optionName}</td></tr>`;
   
   properties.forEach(prop => {
-    html += `<tr><td style="border: 1px solid #ddd; padding: 4px 6px;">${prop.key}</td><td style="border: 1px solid #ddd; padding: 4px 6px;">${prop.value}</td></tr>`;
+    html += `<tr><td style="border: 1px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; background-color: oklch(44.8% 0.119 151.328)">${prop.key}</td><td style="border: 1px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; background-color: oklch(44.8% 0.119 151.328)">${prop.value}</td></tr>`;
   });
   
   html += `</table>`;

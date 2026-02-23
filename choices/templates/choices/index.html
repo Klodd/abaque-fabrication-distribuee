@@ -3,9 +3,9 @@
 
 {% block content %}
   <!-- Header -->
-  <div class="fixed top-0 right-0 left-0 bg-gradient-to-b from-slate-900/98 to-slate-900/95 backdrop-blur-sm border-b border-slate-500/20 p-4 z-50 shadow-lg">
+  <div class="fixed top-0 right-0 left-0 bg-linear-to-b from-slate-900/98 to-slate-900/95 backdrop-blur-md border-b border-slate-500/20 p-4 z-50 shadow-lg">
     <div class="flex justify-between items-center max-w-[1400px] mx-auto">
-      <h1 class="text-xl font-bold text-slate-200 m-0">⚙️ Abaque de la Fabrication Distribuée</h1>
+      <h1 class="text-xl font-bold text-slate-200 m-0">🧮 Abaque de la Fabrication Distribuée</h1>
       <div class="flex items-center gap-4">
         <span class="text-slate-400 text-sm">Logged in as: <strong class="text-slate-200">{{ user.username }}</strong></span>
         <a href="/logout/" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-all border border-blue-600 hover:shadow-md hover:shadow-blue-500/30">Logout</a>
@@ -18,170 +18,162 @@
     <!-- Configuration Section -->
     <div class="mb-8">
       <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
-        <span>📋</span> Configuration
+        <span>📋</span> Configuration du projet
       </h2>
-      <div id="choices-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div id="choices-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {% for g in groups %}
-          {% if g.name != "Machine" %}
             {% include "choices/configuration_section.html" %}
-          {% endif%}
         {% endfor %}
       </div>
     </div>
 
+    
+    
     <!-- Configuration and Data Entry Section -->
     <div class="mb-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
-      <!-- Machine Selector -->
-      <div class="lg:col-span-1">
-        <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
-          <span>📋</span> Configuration
-        </h2>
-        <div id="choices-list" class="space-y-4">
-          {% for g in groups %}
-            {% if g.name == "Machine" %}
-              {% include "choices/configuration_section.html" %}
-            {% endif %}
-          {% endfor %}
-        </div>
-      </div>
-
       <!-- Data Entry Section -->
       <div class="lg:col-span-3">
         <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
-          <span>📊</span> Data Entry
+          <span>🗃️</span> Tâches successives
         </h2>
-        <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5 overflow-x-auto">
+        <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5 overflow-x-auto">
           <table id="data-table" class="w-full border-separate border-spacing-0 text-slate-200">
             <thead>
-              <tr class="bg-gradient-to-r from-slate-600/30 to-slate-700/30 border-b-2 border-slate-500/30">
-                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">#</th>
-                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Quantity<br><span class="text-xs text-slate-500 font-normal">g / m² / ml</span></th>
-                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Machine Time<br><span class="text-xs text-slate-500 font-normal">minutes</span></th>
-                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Additional Time<br><span class="text-xs text-slate-500 font-normal">minutes</span></th>
-                <th class="p-3 text-left font-bold text-slate-400 text-sm uppercase tracking-wide">Action</th>
+              <tr class="bg-linear-to-r from-slate-600/30 to-slate-700/30 border-b-2 border-slate-500/30">
+                <th class="p-3 text-left font-bold text-slate-100 text-sm uppercase tracking-wide">#</th>
+                <th class="p-3 text-left font-bold text-slate-100 text-sm uppercase tracking-wide">Quantité matière consommée<br><span class="lowercase text-xs text-slate-200 font-normal">g / m² / ml</span></th>
+                <th class="p-3 text-left font-bold text-slate-100 text-sm uppercase tracking-wide">Temps machine<br><span class="lowercase text-xs text-slate-200 font-normal">minutes</span></th>
+                <th class="p-3 text-left font-bold text-slate-100 text-sm uppercase tracking-wide">Temps opérateur supplémentaire<br><span class="lowercase text-xs text-slate-200 font-normal">minutes</span></th>
+                <th class="p-3 text-left font-bold text-slate-100 text-sm uppercase tracking-wide"></th>
               </tr>
             </thead>
             <tbody>
               <tr class="border-b border-slate-500/15 transition-all hover:bg-blue-500/10">
                 <td class="ln p-3 text-slate-500 font-mono">1</td>
-                <td class="p-3"><input class="col-qty w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition" value="0.4" /></td>
-                <td class="p-3"><input class="col-tps w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition" value="20" /></td>
-                <td class="p-3"><input class="col-sup w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition" value="10" /></td>
-                <td class="p-3"><button class="del-row px-3 py-1 bg-red-500/15 text-red-500 border border-red-500/30 rounded font-medium text-sm hover:bg-red-500/25 hover:border-red-500/60 transition">Delete</button></td>
+                <td class="p-3"><input class="col-qty w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400" value="0.4" /></td>
+                <td class="p-3"><input class="col-tps w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400" value="20" /></td>
+                <td class="p-3"><input class="col-sup w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 p-2 rounded transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400" value="10" /></td>
+                <td class="p-3"><button class="del-row px-3 py-1 bg-red-500/15 text-red-500 border border-red-500/30 rounded font-medium text-sm hover:bg-red-500/25 hover:border-red-500/60 transition">Retirer</button></td>
               </tr>
             </tbody>
           </table>
           <div class="mt-4">
-            <button id="add-row" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition shadow-sm hover:shadow-md hover:shadow-blue-500/30">+ Add Row</button>
+            <button id="add-row" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition ">+ Ajouter une tâche</button>
           </div>
         </div>
       </div>
+
+      <!-- Number of Copies -->
+       <div class="mb-8">
+        <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
+              <span>🏋️‍♀️</span> Répétition
+            </h2>
+          <div class="bg-slate-600 border border-green-500/20 rounded-lg p-4 max-w-[300px]">
+            <label for="number-of-copies" class="block text-slate-100 font-bold text-sm uppercase tracking-wide mb-3">Nombre d'exemplaires</label>
+            <input type="number" id="number-of-copies" value="1" min="1" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400"/>
+          </div>
+        </div>
+
     </div>
 
-    <!-- Number of Copies -->
-    <div class="mb-8">
-      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-4 max-w-[300px]">
-        <label for="number-of-copies" class="block text-indigo-400 font-bold text-sm uppercase tracking-wide mb-3">Nombre d'exemplaires</label>
-        <input type="number" id="number-of-copies" value="1" min="1" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"/>
-      </div>
-    </div>
 
     <!-- Summaries Section -->
+
+    <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
+          <span>🧐</span> Résultats
+        </h2>
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-8">
       <!-- Material Summary -->
-      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
-        <h3 class="text-indigo-400 text-lg mb-4 flex items-center gap-2">
-          <span>🧪</span> Material
+      <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5">
+        <h3 class="uppercase font-bold text-sm text-slate-100 mb-2 flex items-center gap-2">
+          <span>🧱</span> Matériaux
         </h3>
-        <div class="text-slate-400 text-sm mb-2">Total Quantity</div>
-        <div class="text-slate-200 text-2xl font-bold" id="total-material">0</div>
-      </div>
+        <div class="text-slate-200 text-sm mb-2">Total consommé (g / m2 / ml)</div>
+        <div class="text-slate-100 text-xl font-bold"><span id="total-material"> 0</span> -- <span id="material-name"></span> </div>
 
-      <!-- Time Summary -->
-      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
-        <h3 class="text-indigo-400 text-lg mb-4 flex items-center gap-2">
-          <span>⏱️</span> Time
+        <h3 class="uppercase font-bold text-sm text-slate-100 my-4 flex items-center gap-2">
+          <span>⏱️</span> Temps
         </h3>
-        <div class="flex justify-between mb-3 pb-3 border-b border-slate-500/20">
-          <span class="text-slate-400">Machine</span>
-          <span class="text-slate-200 font-bold" id="total-tps">0</span>
+        <div class="flex justify-between mb-3 pb-3 border-b border-green-500/20">
+          <span class="text-slate-200">Machine (<span id="time-summary-machine-name"></span>)</span>
+          <span class="text-slate-100 font-bold"><span id="total-tps">0</span>min
         </div>
-        <div class="flex justify-between mb-3 pb-3 border-b border-slate-500/20">
-          <span class="text-slate-400">Additional</span>
-          <span class="text-slate-200 font-bold" id="total-additional-time">0</span>
+        <div class="flex justify-between mb-3 pb-3 border-b border-green-500/20">
+          <span class="text-slate-200">Temps opérateur supplémentaire</span>
+          <span class="text-slate-100 font-bold"><span id="total-additional-time">0</span>min</span>
         </div>
         <div class="flex justify-between">
-          <span class="text-slate-400">Operator Total</span>
-          <span class="text-slate-200 font-bold text-xl" id="total-operator-time">0</span>
+          <span class="text-slate-200">Total (<span id="time-summary-pourcent-temps">0</span>% du temps machine + temps opérateur supp)</span>
+          <span class="text-slate-100 font-bold text-xl"><span id="total-operator-time">0</span>min</span>
         </div>
       </div>
 
-      <!-- Final Cost -->
-      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
-        <h3 class="text-indigo-400 text-lg mb-4 flex items-center gap-2">
-          <span>💰</span> Cost
+      <!-- Detailed Cost Breakdown -->
+      <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5">
+        <h3 class="uppercase font-bold text-slate-100 text-sm flex items-center gap-2 mb-2">
+          <span>📊</span> Décomposition du coût
         </h3>
-        <div class="text-slate-400 text-sm mb-3">Unit Cost</div>
-        <div class="text-green-400 text-2xl font-bold mb-4 pb-4 border-b border-slate-500/20" id="cost-summary-final-cost-unit">0€</div>
-        <div class="text-slate-400 text-sm mb-2">Total Cost</div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-slate-200">
+            <div>
+              <div class="text-slate-200 text-sm mb-1">Coût matière</div>
+              <div class="text-xl font-bold mb-4"><span id="cost-summary-total-material-cost">0</span>€</div>
+              
+              <div class="text-slate-200 text-sm mb-1">Coût location machine (<span id="cost-summary-machine-cost"></span>€/h)</div>
+              <div class="text-xl font-bold mb-4"><span id="cost-summary-total-machine-cost">0</span>€</div>
+              
+              <div class="text-slate-200 text-sm mb-1">Consommables (<span id="cost-summary-consumable-per-min"></span>€/min)</div>
+              <div class="text-xl font-bold mb-4"><span id="cost-summary-consumable-cost">0</span>€</div>
+              
+              <div class="text-slate-200 text-sm mb-1">Coût logiciel (<span id="cost-summary-software-cost-per-min"></span>€/min)</div>
+              <div class="text-xl font-bold"><span id="cost-summary-software-cost">0</span>€</div>
+            </div>
+            <div>
+              <div class="text-slate-200 text-sm mb-1">Coût humain (<span id="cost-summary-human-hourly-price"></span>€/h)</div>
+              <div class="text-xl font-bold mb-4"><span id="cost-summary-human-cost">0</span>€</div>
+              
+              <div class="text-slate-200 text-sm mb-1">Coût humain majoré</div>
+              <div class="text-xl font-bold mb-4"><span id="cost-summary-majoration-cost">0</span>€</div>
+              
+              <div class="text-slate-200 text-sm mb-1">Licence (<span id="cost-summary-license-name"></span>)</div>
+              <div class="text-xl font-bold mb-4"><span id="cost-summary-license-cost">0</span>€</div>
+              
+              <div class="text-slate-200 text-sm mb-1">Contribution projet associatif</div>
+              <div class="text-xl font-bold"><span id="cost-summary-asso-contribution">0</span>€</div>
+            </div>
+          </div>
+        </div>
+
+      <!-- Final Cost -->
+      <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5">
+        <h3 class="uppercase font-bold text-slate-100 text-sm mb-4 flex items-center gap-2">
+          <span>💰</span> Coût
+        </h3>
+        <div class="text-slate-200 text-sm mb-3">Coût unitaire</div>
+        <div class="text-green-200 text-2xl font-bold mb-4 pb-4 border-b border-green-500/20" id="cost-summary-final-cost-unit">0€</div>
+        <div class="text-slate-200 text-sm mb-2">Coût total</div>
         <div class="text-green-400 text-3xl font-bold" id="cost-summary-final-cost">0€</div>
       </div>
     </div>
 
-    <!-- Detailed Cost Breakdown -->
-    <div class="mb-8">
-      <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
-        <span>📈</span> Cost Breakdown
-      </h2>
-      <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 text-slate-200">
-          <div>
-            <div class="text-slate-400 text-sm mb-1">Material Cost</div>
-            <div class="text-xl font-bold mb-4" id="cost-summary-total-material-cost">0€</div>
-            
-            <div class="text-slate-400 text-sm mb-1">Machine Rental</div>
-            <div class="text-xl font-bold mb-4" id="cost-summary-total-machine-cost">0€</div>
-            
-            <div class="text-slate-400 text-sm mb-1">Consumables</div>
-            <div class="text-xl font-bold mb-4" id="cost-summary-consommable-cost">0€</div>
-            
-            <div class="text-slate-400 text-sm mb-1">Software</div>
-            <div class="text-xl font-bold" id="cost-summary-software-cost">0€</div>
-          </div>
-          <div>
-            <div class="text-slate-400 text-sm mb-1">Labor</div>
-            <div class="text-xl font-bold mb-4" id="cost-summary-human-cost">0€</div>
-            
-            <div class="text-slate-400 text-sm mb-1">Urgency Multiplier</div>
-            <div class="text-xl font-bold mb-4" id="cost-summary-majoration-cost">0€</div>
-            
-            <div class="text-slate-400 text-sm mb-1">License Fee</div>
-            <div class="text-xl font-bold mb-4" id="cost-summary-license-cost">0€</div>
-            
-            <div class="text-slate-400 text-sm mb-1">Asso Contribution</div>
-            <div class="text-xl font-bold" id="cost-summary-asso-contribution">0€</div>
-          </div>
-        </div>
-      </div>
-    </div>
+    
 
     <!-- Save and Load Jobs -->
     <div class="mb-8">
       <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
-        <span>💾</span> Job Management
+        <span>💾</span> Gestionnaire de projets
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         <!-- Save Section -->
-        <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
-          <h3 class="text-slate-200 font-bold mb-4">Save Current Job</h3>
-          <input id="save-name" placeholder="Job name (optional)" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm mb-3 transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"/>
-          <button id="save-job" class="w-full px-4 py-3 bg-blue-600 text-white border border-blue-600 rounded-md font-medium text-sm hover:bg-blue-700 transition box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2)" onmouseover="this.style.background='rgb(29, 78, 216)'; this.style.boxShadow='0 6px 12px rgba(37, 99, 235, 0.4)'" onmouseout="this.style.background='rgb(37, 99, 235)'; this.style.boxShadow='0 4px 6px rgba(37, 99, 235, 0.2)'">Save Job</button>
+        <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5">
+          <h3 class="text-slate-200 font-bold mb-4">Sauvegarder le projet actuel</h3>
+          <input id="save-name" placeholder="Nom du projet (optionnel)" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm mb-3 transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"/>
+          <button id="save-job" class="w-full px-4 py-3 bg-blue-600 text-white border border-blue-600 rounded-md font-medium text-sm hover:bg-blue-700 transition box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2)" onmouseover="this.style.background='rgb(29, 78, 216)'; this.style.boxShadow='0 6px 12px rgba(37, 99, 235, 0.4)'" onmouseout="this.style.background='rgb(37, 99, 235)'; this.style.boxShadow='0 4px 6px rgba(37, 99, 235, 0.2)'">Sauvegarder projet</button>
         </div>
         
         <!-- Load Section -->
-        <div class="bg-slate-800/80 border border-slate-500/20 rounded-lg p-5">
-          <h3 class="text-slate-200 font-bold mb-4">Saved Jobs</h3>
-          <div id="saved-list" class="max-h-[300px] overflow-y-auto space-y-2"></div>
+        <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5">
+          <h3 class="text-slate-200 font-bold mb-4">Projets sauvegardés</h3>
+          <div id="saved-list" class="max-h-[300px] overflow-y-auto space-y-2 text-slate-200 bg-slate-500 border border-slate-500/20 rounded-md p-4"></div>
         </div>
       </div>
     </div>
