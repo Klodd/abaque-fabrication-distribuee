@@ -7,7 +7,6 @@
       <div id="details-{{ g.id }}" class="choice-details text-sm text-slate-400 hidden group-hover:block absolute left-0 top-1/2 mt-1 w-max max-w-xs bg-slate-70 rounded p-2 shadow-lg pointer-events-none transition-opacity z-10"></div>
     </div>
     <form class="choice-form flex-1" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}">
-    <!-- <form class="choice-form flex-1" data-group-id="{{ g.id }}" data-group-name="{{ g.name }}" data-default-options="{{ g.options_json|escapejs }}" hx-post="{% url 'choices:update' %}" hx-trigger="change"> -->
       {% csrf_token %}
       <input type="hidden" name="group" value="{{ g.id }}">
       <select name="value" class="cursor-pointer w-full bg-green-700 border border-slate-500/20 text-slate-100 px-3 py-1 rounded-md text-sm transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400">
@@ -22,7 +21,7 @@
         {% endfor %}
       </select>
     </form>
-    <button class="edit-options text-slate-400 hover:text-slate-200 transform -scale-x-100" data-group-id="{{ g.id }}">✏️</button>
+    <button class="edit-options text-slate-400 hover:text-slate-200 -scale-x-100" data-group-id="{{ g.id }}">✏️</button>
 
   </div>
 </div>
