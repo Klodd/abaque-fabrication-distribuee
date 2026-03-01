@@ -3,70 +3,114 @@ const API_BASE = '/api/';
 
 // HTMX event listener
 document.body.addEventListener('htmx:afterRequest', function(evt) {
-  serializeStateToUI();
-  document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
+  if (evt.detail.requestConfig.path.includes("/apply/") && evt.detail.requestConfig.path.includes("/saved-jobs/")) {
+     const response = evt.detail.xhr.response;
+    try {
+      const data = JSON.parse(response);
+      if (data.state) {
+        applyState(JSON.parse(data.state));
+        serializeStateToUI();
+        updateAllDetailsAndSummary();
+      }
+    } catch (e) {
+      console.error('Error parsing response:', e);
+    }
+  }
+
+  if (evt.detail.requestConfig.path.includes("/delete/") && evt.detail.requestConfig.path.includes("/saved-jobs/")) {
+      htmx.trigger('#saved-list', 'refreshAfterDelete');
+    }
+
 });
 
-// --- API calls for config and jobs ---
-async function loadConfigurations() {
-  try {
-    const res = await fetch(API_BASE + 'configurations/');
-    if (!res.ok) throw new Error('Failed to load configurations');
-    return await res.json(); // {gid: [options]}
-  } catch (e) {
-    console.error('Load config error:', e);
-    return {};
-  }
+// Get the CSRF token from the cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
 }
 
-async function saveConfigurations(configMap) {
-  try {
-    const res = await fetch(API_BASE + 'configurations/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(configMap)
-    });
-    return res.ok;
-  } catch (e) {
-    console.error('Save config error:', e);
-    return false;
-  }
-}
+// // --- API calls for config and jobs ---
+// async function loadConfigurations() {
+//   try {
+//     const res = await fetch(API_BASE + 'configurations/');
+//     if (!res.ok) throw new Error('Failed to load configurations');
+//     return await res.json(); // {gid: [options]}
+//   } catch (e) {
+//     console.error('Load config error:', e);
+//     return {};
+//   }
+// }
 
-async function loadSavedJobs() {
-  try {
-    const res = await fetch(API_BASE + 'saved-jobs/');
-    if (!res.ok) throw new Error('Failed to load jobs');
-    return await res.json(); // [{id, name, state_json, created_at}, ...]
-  } catch (e) {
-    console.error('Load jobs error:', e);
-    return [];
-  }
-}
+// async function saveConfigurations(configMap) {
+//   try {
+//     const res = await fetch(API_BASE + 'configurations/', {
+//       method: 'POST',
+//       headers: { 
+//         'Content-Type': 'application/json',
+//         'X-CSRFToken': getCookie('csrftoken')
+//       },
+//       body: JSON.stringify(configMap)
+//     });
+//     return res.ok;
+//   } catch (e) {
+//     console.error('Save config error:', e);
+//     return false;
+//   }
+// }
 
-async function saveNewJob(name, stateId, state) {
-  try {
-    const res = await fetch(API_BASE + 'saved-jobs/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, state_id: stateId, state })
-    });
-    return res.ok ? await res.json() : null;
-  } catch (e) {
-    console.error('Save job error:', e);
-    return null;
-  }
-}
+// async function loadSavedJobs() {
+//   try {
+//     const res = await fetch(API_BASE + 'saved-jobs/');
+//     if (!res.ok) throw new Error('Failed to load jobs');
+//     const html = await res.text();
+//     return html; // HTML string for the saved jobs list
+//   } catch (e) {
+//     console.error('Load jobs error:', e);
+//     return '<div style="color:oklch(96.8% 0.007 247.896)">Aucun projet sauvegardé</div>';
+//   }
+// }
 
-async function deleteJob(jobId) {
-  try {
-    const res = await fetch(API_BASE + `saved-jobs/${jobId}/delete/`, { method: 'DELETE' });
-    return res.ok;
-  } catch (e) {
-    console.error('Delete job error:', e);
-    return false;
-  }
-}
+// async function saveNewJob(name, stateId, state) {
+//   try {
+//     const res = await fetch(API_BASE + 'saved-jobs/', {
+//       method: 'POST',
+//       headers: { 
+//         'Content-Type': 'application/json',
+//         'X-CSRFToken': getCookie('csrftoken')
+//       },
+//       body: JSON.stringify({ name, state_id: stateId, state })
+//     });
+//     return res.ok ? await res.json() : null;
+//   } catch (e) {
+//     console.error('Save job error:', e);
+//     return null;
+//   }
+// }
+
+// async function deleteJob(jobId) {
+//   try {
+//     const res = await fetch(API_BASE + `saved-jobs/${jobId}/delete/`, {
+//       method: 'DELETE',
+//       headers: {
+//         'X-CSRFToken': getCookie('csrftoken')
+//       }
+//     });
+//     return res.ok;
+//   } catch (e) {
+//     console.error('Delete job error:', e);
+//     return false;
+//   }
+// }
 
 // In-memory cache for configurations
 let configCache = {};
@@ -491,7 +535,13 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   
   if (success) {
     const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
+    const currentValue = form.querySelector('select[name="value"]').value;
     populateSelectFromOptions(form, parsed);
+    // Restore the previously selected value
+    const select = form.querySelector('select[name="value"]');
+    if (select && currentValue) {
+      select.value = currentValue;
+    }
     closeModal();
     alert('Options saved');
   } else {
@@ -510,79 +560,29 @@ modal.addEventListener('click', (e) => {
   }
 });
 
-// --- Saved jobs management (API-based) ---
-async function populateSavedList() {
-  const wrap = document.getElementById('saved-list');
-  const jobs = await loadSavedJobs();
-  if (!wrap) return;
-  if (jobs.length === 0) {
-    wrap.innerHTML = '<div style="color:oklch(96.8% 0.007 247.896)">Aucun projet sauvegardé</div>';
-    return;
-  }
-  wrap.innerHTML = '';
-  jobs.slice().reverse().forEach(j => {
-    const el = document.createElement('div');
-    el.style.display = 'flex';
-    el.style.alignItems = 'center';
-    el.style.justifyContent = 'space-between';
-    el.style.paddingBottom = '6px';
-    el.style.borderBottom = '1px solid rgb(34 197 94 / 0.2)';
-    const left = document.createElement('div');
-    left.textContent = j.name + ' — ' + new Date(j.created_at).toLocaleString();
-    left.style.flex = '1';
-    const btns = document.createElement('div');
-    const load = document.createElement('button');
-    load.classList.add('button-green');
-    load.textContent = 'Importer job';
-    load.addEventListener('click', () => {
-      applyState(j.state_json);
-      serializeStateToUI();
-      updateAllDetailsAndSummary();
-      updateSummary();
-    });
-    const del = document.createElement('button');
-    del.textContent = 'Supprimer';
-    del.style.marginLeft = '6px';
-    del.classList.add('button-red');
-    del.addEventListener('click', async () => {
-      const ok = await deleteJob(j.id);
-      if (ok) populateSavedList();
-    });
-    
-    btns.appendChild(load);
-    btns.appendChild(del);
-    el.appendChild(left);
-    el.appendChild(btns);
-    wrap.appendChild(el);
-  });
-}
-
-// function exportJobs(list) {
-//   const blob = new Blob([JSON.stringify(list, null, 2)], { type: 'application/json' });
-//   const url = URL.createObjectURL(blob);
-//   const a = document.createElement('a');
-//   a.href = url;
-//   a.download = 'saved_jobs.json';
-//   document.body.appendChild(a);
-//   a.click();
-//   a.remove();
-//   URL.revokeObjectURL(url);
+// // --- Saved jobs management (API-based) ---
+// async function populateSavedList() {
+//   const wrap = document.getElementById('saved-list');
+//   if (!wrap) return;
+//   const html = await loadSavedJobs();
+//   wrap.innerHTML = html;
 // }
 
-document.getElementById('save-job').addEventListener('click', async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('save-name').value.trim() || 'Job ' + new Date().toLocaleString();
-  const id = serializeStateToUI();
-  const state = buildState();
-  const job = await saveNewJob(name, id, state);
-  if (job) {
-    document.getElementById('save-name').value = '';
-    populateSavedList();
-    alert('Saved');
-  } else {
-    alert('Error saving job');
-  }
-});
+
+// document.getElementById('save-job').addEventListener('click', async (e) => {
+//   e.preventDefault();
+//   const name = document.getElementById('save-name').value.trim() || 'Job ' + new Date().toLocaleString();
+//   const id = serializeStateToUI();
+//   const state = buildState();
+//   const job = await saveNewJob(name, id, state);
+//   if (job) {
+//     document.getElementById('save-name').value = '';
+//     populateSavedList();
+//     alert('Saved');
+//   } else {
+//     alert('Error saving job');
+//   }
+// });
 
 function updateAllDetailsAndSummary() {
   document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
@@ -837,7 +837,7 @@ document.getElementById('number-of-copies').addEventListener('change', () => {
 
 // Initialization on load
 window.addEventListener('load', async () => {
-  populateSavedList();
+  // populateSavedList();
   updateSummary();
   serializeStateToUI();
   document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));

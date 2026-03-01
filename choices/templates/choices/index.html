@@ -14,29 +14,15 @@
   </div>
 
   <!-- Main Content -->
-  <div class="mt-20 p-5 max-w-[1400px] mx-auto">
+  <div class="mt-20 px-5 max-w-[1400px] mx-auto">
     <!-- Configuration Section -->
     <div class="mb-8">
       <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
         <span>📋</span> Configuration du projet
       </h2>
-      <div id="choices-list" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {% for g in groups %}
-            {% include "choices/configuration_section.html" %}
-        {% endfor %}
-      </div>
-    </div>
+      <div id="configuration-section" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-    
-    
-    <!-- Configuration and Data Entry Section -->
-    <div class="mb-8 grid grid-cols-1 lg:grid-cols-4 gap-6">
-      <!-- Data Entry Section -->
-      <div class="lg:col-span-3">
-        <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
-          <span>🗃️</span> Tâches successives
-        </h2>
-        <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5 overflow-x-auto">
+        <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5 overflow-x-auto col-span-1 sm:col-span-2 lg:col-span-3">
           <table id="data-table" class="w-full border-separate border-spacing-0 text-slate-200">
             <thead>
               <tr class="bg-linear-to-r from-slate-600/30 to-slate-700/30 border-b-2 border-slate-500/30">
@@ -61,24 +47,27 @@
             <button id="add-row" class="px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 transition ">+ Ajouter une tâche</button>
           </div>
         </div>
-      </div>
 
-      <!-- Number of Copies -->
-       <div class="mb-8">
-        <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
-              <span>🏋️‍♀️</span> Répétition
-            </h2>
-          <div class="bg-slate-600 border border-green-500/20 rounded-lg p-4 max-w-[300px]">
-            <label for="number-of-copies" class="block text-slate-100 font-bold text-sm uppercase tracking-wide mb-3">Nombre d'exemplaires</label>
+
+
+        <div id="choices-list" class="space-y-4 col-span-1 sm:col-span-2 lg:col-span-1">
+          {% for g in groups %}
+              {% include "choices/configuration_section.html" %}
+          {% endfor %}
+
+          <div class="bg-slate-600 border border-green-500/20 rounded-lg px-4 py-1 max-w-[300px]">
+            <label for="number-of-copies" class="block text-slate-100 font-bold text-xs uppercase tracking-wide mb-1">Nombre d'exemplaires</label>
             <input type="number" id="number-of-copies" value="1" min="1" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm transition focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-slate-400"/>
           </div>
         </div>
+        
 
+      </div>
     </div>
 
+  
 
     <!-- Summaries Section -->
-
     <h2 class="text-slate-200 text-xl mb-5 flex items-center gap-2">
           <span>🧐</span> Résultats
         </h2>
@@ -166,14 +155,29 @@
         <!-- Save Section -->
         <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5">
           <h3 class="text-slate-200 font-bold mb-4">Sauvegarder le projet actuel</h3>
-          <input id="save-name" placeholder="Nom du projet (optionnel)" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm mb-3 transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"/>
-          <button id="save-job" class="w-full px-4 py-3 bg-blue-600 text-white border border-blue-600 rounded-md font-medium text-sm hover:bg-blue-700 transition box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2)" onmouseover="this.style.background='rgb(29, 78, 216)'; this.style.boxShadow='0 6px 12px rgba(37, 99, 235, 0.4)'" onmouseout="this.style.background='rgb(37, 99, 235)'; this.style.boxShadow='0 4px 6px rgba(37, 99, 235, 0.2)'">Sauvegarder projet</button>
+          <input id="save-name" name="name" placeholder="Nom du projet (optionnel)" class="w-full bg-slate-700/80 border border-slate-500/20 text-slate-100 px-3 py-2 rounded-md text-sm mb-3 transition focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-200"/>
+          <button id="save-job" class="w-full px-4 py-3 bg-blue-600 text-white border border-blue-600 rounded-md font-medium text-sm hover:bg-blue-700 transition box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2)" 
+                  hx-post="{% url 'choices:api_get_saved_jobs' %}" 
+                  hx-trigger="click"
+                  hx-swap="none"
+                  hx-include="#save-name"
+                  hx-vals='js:{"state_id": serializeStateToUI(), "state": buildState()}'
+                  onmouseover="this.style.background='rgb(29, 78, 216)'; this.style.boxShadow='0 6px 12px rgba(37, 99, 235, 0.4)'"
+                  onmouseout="this.style.background='rgb(37, 99, 235)'; this.style.boxShadow='0 4px 6px rgba(37, 99, 235, 0.2)'">
+            Sauvegarder projet
+          </button>
         </div>
         
         <!-- Load Section -->
         <div class="bg-slate-600 border border-green-500/20 rounded-lg p-5">
           <h3 class="text-slate-200 font-bold mb-4">Projets sauvegardés</h3>
-          <div id="saved-list" class="max-h-[300px] overflow-y-auto space-y-2 text-slate-200 bg-slate-500 border border-slate-500/20 rounded-md p-4"></div>
+          <div id="saved-list"
+               class="max-h-[300px] overflow-y-auto space-y-2 text-slate-200 bg-slate-500 border border-slate-500/20 rounded-md p-4"
+               hx-get="{% url 'choices:api_get_saved_jobs' %}"
+               hx-trigger="load, click delay:200ms from:button#save-job, refreshAfterDelete delay:200ms"
+               hx-swap="innerHTML">
+          </div>
+              <!-- <button class="button-red ml-2" hx-get="{% url 'choices:api_get_saved_jobs' %}" hx-swap="none" hx-trigger="click"> Supprimer </button> -->
         </div>
       </div>
     </div>

@@ -1,0 +1,17 @@
+{% for job in jobs %}
+<div class="flex items-center justify-between pb-2 border-b border-green-500/20">
+  <div class="text-slate-200">
+    {{ job.created_at|date:"SHORT_DATE_FORMAT" }} — {{ job.name }}
+  </div>
+  <div>
+    <button class="button-green" hx-post="{% url 'choices:apply_job' job.id %}" hx-swap="none" hx-trigger="click">
+      Importer
+    </button>
+    <button class="button-red ml-2" hx-delete="{% url 'choices:api_delete_job' job.id %}" hx-swap="none" hx-trigger="click">
+      Supprimer
+    </button>
+  </div>
+</div>
+{% empty %}
+<div class="text-slate-200">Aucun projet sauvegardé</div>
+{% endfor %}

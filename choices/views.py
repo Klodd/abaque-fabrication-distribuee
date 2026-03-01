@@ -4,7 +4,7 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
 import json
 from .models import UserConfiguration, UserSavedJob
 
@@ -15,13 +15,7 @@ DEFAULT_GROUPS = [
         {"name": "Non"},
         {"name": "Oui"}
     ]},
-    {"id": 2, "name": "Type de client (réduction sur le coût homme)", "options": [
-        {"name": "Aucun", "percent": 1},
-        {"name": "Adhérent", "percent": 0.6},
-        {"name": "Partenaire", "percent": 0.8},
-        {"name": "Amis", "percent": 0.9}
-    ]},
-    {"id": 3, "name": "Matière", "options": [
+    {"id": 2, "name": "Matière", "options": [
         {"name":"Sans","type":"","epaisseur":"","prix":0,"url_achat":""},
         {"name":"PMMA Plexi 3mm","type":"panneau_laser","epaisseur":3,"prix":45,"url_achat":""},
         {"name":"PMMA Plexi 6mm","type":"panneau_laser","epaisseur":6,"prix":149.5,"url_achat":""},
@@ -67,7 +61,7 @@ DEFAULT_GROUPS = [
         {"name":"Résine_Noire","type":"resine","epaisseur":"","prix":0.04,"url_achat":""},
         {"name":"PVC 10 mm","type":"panneau","epaisseur":"","prix":72.07,"url_achat":""}
     ]},
-    {"id": 4, "name": "Consommable", "options": [
+    {"id": 3, "name": "Consommable", "options": [
         {"name":"_Sans","prix":0,"duree_vie_totale_minutes":1},
         {"name":"Alcool_Iso","prix":50,"duree_vie_totale_minutes":2000},
         {"name":"Fraise D3,17 1 dent","prix":12.9,"duree_vie_totale_minutes":240},
@@ -109,21 +103,21 @@ DEFAULT_GROUPS = [
         {"name":"Fraise D8 hélicoïdales 1 dent","prix":25.9,"duree_vie_totale_minutes":240},
         {"name":"Fraise D8 hélicoïdales 2 dents","prix":25.9,"duree_vie_totale_minutes":240}
     ]},
-    {"id": 5, "name": "Logiciel de modélisation", "options": [
+    {"id": 4, "name": "Logiciel de modélisation", "options": [
         {"name":"Aucun","prix_mensuel":0},
         {"name":"Autocad","prix_mensuel":258},
         {"name":"Fusion 360 Entreprise","prix_mensuel":42},
         {"name":"Fusion 360 Start-Up","prix_mensuel":0},
         {"name":"Rhino 6","prix_mensuel":27.8}
     ]},
-    {"id": 6, "name": "Type de prestation", "options": [
+    {"id": 5, "name": "Type de prestation", "options": [
         {"name": "One-Shot", "taux_horaire": 40},
         {"name": "> 2", "taux_horaire": 35},
         {"name": " > 10", "taux_horaire": 25},
         {"name": "Modelisation", "taux_horaire": 60},
         {"name": "Coût homme OFFERT", "taux_horaire": 0}
     ]},
-    {"id": 7, "name": "Type de licence", "options": [
+    {"id": 6, "name": "Type de licence", "options": [
         {"name":"CC-Zero","description":"Zéro","prix":0},
         {"name":"CC-BY-SA","description":"Attribution - Partage dans les Mêmes Conditions","prix":0},
         {"name":"CC-BY-NC-SA","description":"Attribution - Pas d'utilisation commerciale - Partage dans les Mêmes Conditions","prix":10},
@@ -131,12 +125,12 @@ DEFAULT_GROUPS = [
         {"name":"CC-BY-NC-ND-SA","description":"Attribution - Pas d'utilisation commerciale - Pas de modification - Partage dans les Mêmes Conditions","prix":30},
         {"name":"CC-BY-NC-ND-DP-SA","description":"Attribution - Pas d'utilisation commerciale - Pas de modification - Pas de diffusion - Partage dans les Mêmes Conditions","prix":50}
 ]},
-    {"id": 8, "name": "Majoration pour urgence, déplacements...", "options": [
+    {"id": 7, "name": "Majoration pour urgence, déplacements...", "options": [
         {"name": "Aucun", "majoration_coef": 1},
         {"name": "Urgent", "majoration_coef": 1.2},
         {"name": "Travail en soirée", "majoration_coef": 1.9}
     ]},
-    {"id": 9, "name": "Contribution au projet asso", "options": [
+    {"id": 8, "name": "Contribution au projet asso", "options": [
         {"name": "base", "pourcentage_contribution": 0.1},
         {"name": "Bonus -2", "pourcentage_contribution": 0.15},
         {"name": "Bonus -1", "pourcentage_contribution": 0.2},
@@ -145,7 +139,7 @@ DEFAULT_GROUPS = [
         {"name": "Bonus +2", "pourcentage_contribution": 0.8},
         {"name": "Bonus +3", "pourcentage_contribution": 0.9}
     ]},
-    {"id": 10, "name": "Machine", "options": [
+    {"id": 9, "name": "Machine", "options": [
         {"name": "Sans_Machine","type": "None","prix_achat": "","cout_fonctionnement": "","duree_amortissement_mois": 60,"prix_adherent": 0,"prix_normal": 0,"majoration": 0,"pourcent_temps": ""},
         {"name": "Créality Under3_Pro_V2","type": "imprimante_3D","prix_achat": 300,"cout_fonctionnement": 2.5,"duree_amortissement_mois": 36,"prix_adherent": 3,"prix_normal": 5,"majoration": 5,"pourcent_temps": 15},
         {"name": "Ultimaker S5","type": "imprimante_3D","prix_achat": 6500,"cout_fonctionnement": 3,"duree_amortissement_mois": 60,"prix_adherent": 5,"prix_normal": 8,"majoration": 3,"pourcent_temps": 15},
@@ -237,6 +231,7 @@ def update_choice(request):
 
 
 @login_required(login_url="/login/")
+@csrf_protect
 @require_http_methods(["GET", "POST"])
 def api_get_configurations(request):
     """Get all user configurations (JSON)"""
@@ -268,30 +263,18 @@ def api_get_configurations(request):
 
 
 @login_required(login_url="/login/")
-@csrf_exempt
 @require_http_methods(["GET", "POST"])
 def api_get_saved_jobs(request):
     """Get all user saved jobs or save a new job"""
     if request.method == "GET":
         jobs = UserSavedJob.objects.filter(user=request.user)
-        jobs_data = [
-            {
-                "id": job.id,
-                "name": job.name,
-                "state_id": job.state_id,
-                "state_json": job.state_json,  # JSONField is automatically deserialized
-                "created_at": job.created_at.isoformat()
-            }
-            for job in jobs
-        ]
-        return JsonResponse(jobs_data, safe=False)
+        return render(request, "choices/saved_jobs_list.html", {"jobs": jobs})
     
     # POST: Save a new job
     try:
-        data = json.loads(request.body)
-        name = data.get("name", "Unnamed Job")
-        state_id = data.get("state_id", "")
-        state_json = data.get("state", {})
+        name = request.POST.get("name", "Unnamed Job")
+        state_id = request.POST.get("state_id", "")
+        state_json = request.POST.get("state", {})
         
         job = UserSavedJob.objects.create(
             user=request.user,
@@ -299,20 +282,28 @@ def api_get_saved_jobs(request):
             state_id=state_id,
             state_json=state_json
         )
-        return JsonResponse({
-            "id": job.id,
-            "name": job.name,
-            "state_id": job.state_id,
-            "created_at": job.created_at.isoformat()
-        })
+        return JsonResponse({"id": job.id, "name": job.name, "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S")})
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=400)
 
 
 @login_required(login_url="/login/")
-@csrf_exempt
+@require_http_methods(["POST"])
+def apply_job(request, job_id):
+    """Apply a saved job"""
+    try:
+        job = UserSavedJob.objects.get(id=job_id, user=request.user)
+        return JsonResponse({
+            "state": job.state_json,
+            "success": True
+        })
+    except UserSavedJob.DoesNotExist:
+        return JsonResponse({"error": "Job not found"}, status=404)
+
+
+@login_required(login_url="/login/")
 @require_http_methods(["DELETE"])
-def api_delete_saved_job(request, job_id):
+def api_delete_job(request, job_id):
     """Delete a saved job"""
     try:
         job = UserSavedJob.objects.get(id=job_id, user=request.user)
@@ -361,43 +352,8 @@ def api_import_configurations(request):
         return JsonResponse({"error": str(e)}, status=400)
 
 
-@login_required(login_url="/login/")
-@require_http_methods(["POST"])
-def api_export_saved_jobs(request):
-    """Export all saved jobs as JSON"""
-    jobs = UserSavedJob.objects.filter(user=request.user)
-    result = [
-        {
-            "id": job.id,
-            "name": job.name,
-            "state_id": job.state_id,
-            "state": job.state_json,
-            "created_at": job.created_at.isoformat()
-        }
-        for job in jobs
-    ]
-    
-    response = HttpResponse(json.dumps(result, indent=2), content_type="application/json")
-    response["Content-Disposition"] = "attachment; filename=saved_jobs.json"
-    return response
 
 
-@login_required(login_url="/login/")
-@require_http_methods(["POST"])
-def api_import_saved_jobs(request):
-    """Import saved jobs from JSON"""
-    try:
-        data = json.loads(request.body)
-        for item in data:
-            UserSavedJob.objects.create(
-                user=request.user,
-                name=item.get("name", "Imported Job"),
-                state_id=item.get("state_id", ""),
-                state_json=item.get("state", {})
-            )
-        return JsonResponse({"success": True})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
 
 
 @login_required

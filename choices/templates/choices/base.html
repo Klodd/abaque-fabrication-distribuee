@@ -7,9 +7,9 @@
   <title>Abaque de la Fabrication Distribuée</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="{% static 'css/output.css' %}">
-  <script src="https://unpkg.com/htmx.org@1.11.1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.8/dist/htmx.min.js"></script>
 </head>
-<body class="app-container bg-slate-800">
+<body class="app-container bg-slate-800" hx-headers='{"x-csrftoken": "{{ csrf_token }}"}'>
   {% block content %}{% endblock %}
 </body>
 </html>
