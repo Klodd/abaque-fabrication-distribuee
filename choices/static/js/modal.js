@@ -16,17 +16,15 @@ modal.style.alignItems = 'center';
 modal.style.justifyContent = 'center';
 modal.innerHTML = `
   <div style="position:relative;width:90%;max-width:900px;background:linear-gradient(to bottom, rgb(30, 41, 59), rgb(15, 23, 42));border:1px solid rgba(148, 163, 184, 0.3);padding:24px;border-radius:12px;box-shadow:0 20px 25px rgba(0, 0, 0, 0.5);">
-    <h3 id="modal-title" style="font-size:1.25rem;font-weight:bold;color:rgb(226, 232, 240);margin-bottom:20px;">Edit Options</h3>
-    <div style="margin-bottom:16px;padding:12px;background:rgba(148, 163, 184, 0.1);border-radius:8px;border:1px solid rgba(148, 163, 184, 0.2);">
-      <label style="display:flex;align-items:center;gap:8px;">
-        <input id="modal-new-prop" placeholder="property_name" style="flex:1;background:rgb(51, 65, 85);border:1px solid rgb(71, 85, 99);color:rgb(226, 232, 240);padding:8px 12px;border-radius:6px;font-size:0.875rem;" />
-        <button id="modal-add-prop" style="padding:8px 16px;background:rgb(71, 85, 99);color:rgb(226, 232, 240);border:1px solid rgb(71, 85, 99);border-radius:6px;font-weight:500;cursor:pointer;transition:all 0.2s;font-size:0.875rem;">Add Property</button>
-      </label>
-    </div>
+    <h3 id="modal-title" style="font-size:1.25rem;font-weight:bold;color:rgb(226, 232, 240);margin-bottom:20px;">Éditer les options</h3>
     <div id="modal-rows" style="max-height:50vh;overflow-y:auto;margin-bottom:16px;padding-right:8px;"></div>
+    <div style="margin-bottom:16px;padding:12px;background:rgba(148, 163, 184, 0.1);border-radius:8px;border:1px solid rgba(148, 163, 184, 0.2);display:flex;align-items:center;gap:8px;">
+      <input id="modal-new-prop" placeholder="nom de la propriété" style="flex:1;background:rgb(51, 65, 85);border:1px solid rgb(71, 85, 99);color:rgb(226, 232, 240);padding:8px 12px;border-radius:6px;font-size:0.875rem;" />
+      <button id="modal-add-prop" style="padding:8px 16px;background:rgb(71, 85, 99);color:rgb(226, 232, 240);border:1px solid oklch(72.3% 0.219 149.579);border-radius:6px;font-weight:500;cursor:pointer;transition:all 0.2s;font-size:0.875rem;">Nouvelle propriété</button>
+    </div>
     <div style="display:flex;justify-content:flex-end;gap:12px;padding-top:16px;border-top:1px solid rgba(148, 163, 184, 0.2);">
-      <button id="modal-cancel" style="padding:10px 20px;background:rgb(71, 85, 99);color:rgb(226, 232, 240);border:1px solid rgb(71, 85, 99);border-radius:6px;font-weight:500;cursor:pointer;transition:all 0.2s;font-size:0.875rem;">Cancel</button>
-      <button id="modal-save" style="padding:10px 20px;background:rgb(37, 99, 235);color:rgb(255, 255, 255);border:1px solid rgb(37, 99, 235);border-radius:6px;font-weight:500;cursor:pointer;transition:all 0.2s;font-size:0.875rem;box-shadow:0 4px 6px rgba(37, 99, 235, 0.3);">Save Changes</button>
+      <button id="modal-cancel" style="padding:10px 20px;background:rgb(71, 85, 99);color:rgb(226, 232, 240);border:1px solid rgb(71, 85, 99);border-radius:6px;font-weight:500;cursor:pointer;transition:all 0.2s;font-size:0.875rem;">Annuler</button>
+      <button id="modal-save" style="padding:10px 20px;background:rgb(37, 99, 235);color:rgb(255, 255, 255);border:1px solid rgb(37, 99, 235);border-radius:6px;font-weight:500;cursor:pointer;transition:all 0.2s;font-size:0.875rem;box-shadow:0 4px 6px rgba(37, 99, 235, 0.3);">Enregistrer</button>
     </div>
   </div>`;
 modal.style.display = 'none';
@@ -67,7 +65,7 @@ setTimeout(() => {
     });
     addPropBtn.addEventListener('mouseout', () => {
       addPropBtn.style.background = 'rgb(71, 85, 99)';
-      addPropBtn.style.borderColor = 'rgb(71, 85, 99)';
+      addPropBtn.style.borderColor = 'oklch(72.3% 0.219 149.579)';
     });
   }
 }, 0);
@@ -88,56 +86,64 @@ function closeModal() {
 }
 
 function renderModal(opts, keys, form) {
-  document.getElementById('modal-title').textContent = 'Edit options for ' + (form ? form.dataset.groupName : modalState.groupId);
+  document.getElementById('modal-title').textContent = 'Éditer les options de ' + (form ? form.dataset.groupName : modalState.groupId);
   const rowsWrap = document.getElementById('modal-rows');
   rowsWrap.innerHTML = '';
   const header = document.createElement('div');
   header.style.display = 'flex';
   header.style.fontWeight = 'bold';
   header.style.gap = '8px';
-  header.style.padding = '12px';
-  header.style.background = 'rgba(100, 116, 139, 0.2)';
-  header.style.borderRadius = '6px';
+  header.style.padding = '4px';
   header.style.marginBottom = '12px';
   header.style.color = 'rgb(148, 163, 184)';
   header.style.fontSize = '0.875rem';
   header.style.textTransform = 'uppercase';
+  header.style.fontWeight = 'bold';
   header.style.letterSpacing = '0.05em';
   
   const hn = document.createElement('div');
-  hn.textContent = 'Name';
+  hn.textContent = 'Nom';
   hn.style.flex = '1';
+  hn.style.minWidth = '150px';
   hn.style.display = 'flex';
   hn.style.alignItems = 'center';
-  hn.style.justifyContent = 'space-between';
+  hn.style.justifyContent = 'flex-start';
+  hn.style.border = '1px solid oklch(72.3% 0.219 149.579)';
+  hn.style.borderRadius = '5px';
+  hn.style.color = 'rgb(148, 163, 184)';
   header.appendChild(hn);
   
   keys.forEach(k => {
     const hk = document.createElement('div');
     hk.style.flex = '1';
+    hk.style.minWidth = '150px';
     hk.style.display = 'flex';
+    hk.style.flexDirection = 'column';
     hk.style.alignItems = 'center';
-    hk.style.width = '200px';
-    hk.style.justifyContent = 'space-between';
+    hk.style.justifyContent = 'center';
+    hk.style.borderRadius = '5px';
+    hk.style.border = '1px solid oklch(72.3% 0.219 149.579)';
     const span = document.createElement('span');
     span.textContent = prettyKey(k);
+    span.style.padding = '4px 8px';
+    span.style.color = 'rgb(148, 163, 184)';
     hk.appendChild(span);
     const rm = document.createElement('button');
     rm.textContent = '✕';
-    rm.title = 'Remove property';
+    rm.title = 'Retirer la propriété';
     rm.style.background = 'transparent';
     rm.style.border = 'none';
-    rm.style.color = 'rgb(239, 68, 68)';
+    rm.style.color = 'rgb(255, 150, 150)';
     rm.style.cursor = 'pointer';
     rm.style.fontSize = '1rem';
-    rm.style.padding = '0';
-    rm.style.marginLeft = '4px';
+    rm.style.padding = '0 8px';
     rm.style.transition = 'color 0.2s';
+    rm.style.marginLeft = 'auto';
     rm.addEventListener('click', () => {
       removePropertyKey(k);
     });
     rm.addEventListener('mouseover', () => { rm.style.color = 'rgb(255, 87, 87)' });
-    rm.addEventListener('mouseout', () => { rm.style.color = 'rgb(239, 68, 68)' });
+    rm.addEventListener('mouseout', () => { rm.style.color = 'rgb(255, 150, 150)' });
     hk.appendChild(rm);
     header.appendChild(hk);
   });
@@ -156,7 +162,7 @@ function renderModal(opts, keys, form) {
   const foot = document.createElement('div');
   foot.style.marginTop = '16px';
   const addRowBtn = document.createElement('button');
-  addRowBtn.textContent = '+ Add option';
+  addRowBtn.textContent = '+ Ajouter une option';
   addRowBtn.style.padding = '10px 16px';
   addRowBtn.style.background = 'rgb(37, 99, 235)';
   addRowBtn.style.color = 'rgb(255, 255, 255)';
@@ -175,7 +181,8 @@ function renderModal(opts, keys, form) {
     addRowBtn.style.boxShadow = 'none';
   });
   addRowBtn.addEventListener('click', () => {
-    rowsWrap.appendChild(buildModalRow({}, modalState.keys));
+    const newRow = buildModalRow({}, modalState.keys);
+    rowsWrap.insertBefore(newRow, addRowBtn.parentNode);
   });
   foot.appendChild(addRowBtn);
   rowsWrap.appendChild(foot);
@@ -184,9 +191,10 @@ function renderModal(opts, keys, form) {
 function buildModalRow(opt, keys) {
   const row = document.createElement('div');
   row.style.display = 'flex';
+  row.style.width = 'fit-content';
   row.style.gap = '8px';
   row.style.marginBottom = '8px';
-  row.style.padding = '12px';
+  row.style.padding = '4px';
   row.style.background = 'rgba(51, 65, 85, 0.5)';
   row.style.border = '1px solid rgba(148, 163, 184, 0.2)';
   row.style.borderRadius = '6px';
@@ -205,6 +213,7 @@ function buildModalRow(opt, keys) {
   const inpName = document.createElement('input');
   inpName.placeholder = 'Name';
   inpName.style.flex = '1';
+  inpName.style.maxWidth = '150px';
   inpName.style.background = 'rgb(30, 41, 59)';
   inpName.style.border = '1px solid rgb(71, 85, 99)';
   inpName.style.color = 'rgb(226, 232, 240)';
@@ -229,6 +238,7 @@ function buildModalRow(opt, keys) {
     const inp = document.createElement('input');
     inp.placeholder = prettyKey(k);
     inp.style.flex = '1';
+    inp.style.maxWidth = '150px';
     inp.style.background = 'rgb(30, 41, 59)';
     inp.style.border = '1px solid rgb(71, 85, 99)';
     inp.style.color = 'rgb(226, 232, 240)';
@@ -287,7 +297,7 @@ function removePropertyKey(key) {
   const rowsWrap = document.getElementById('modal-rows');
   const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0);
   const current = rows.map(r => {
-    const name = r.querySelector('input[placeholder="Name"]').value;
+    const name = r.querySelector('input[placeholder="Nom"]').value;
     const obj = { name };
     modalState.keys.forEach(k => {
       const inp = r.querySelector(`input[data-key="${k}"]`);
@@ -319,12 +329,12 @@ function tryParseNumber(v) {
 
 document.getElementById('modal-add-prop').addEventListener('click', async () => {
   const v = document.getElementById('modal-new-prop').value.trim();
-  if (!v) return alert('Enter property name');
-  if (modalState.keys.includes(v)) return alert('Property already present');
+  if (!v) return alert('Nom de la propriuété');
+  if (modalState.keys.includes(v)) return alert('Cette propriété existe déjà');
   modalState.keys.push(v);
   const rowsWrap = document.getElementById('modal-rows');
   const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0).map(r => {
-    const name = r.querySelector('input[placeholder="Name"]').value;
+    const name = r.querySelector('input[placeholder="Nom"]').value;
     const obj = { name };
     modalState.keys.forEach(k => {
       const inp = r.querySelector(`input[data-key="${k}"]`);
@@ -345,7 +355,7 @@ document.getElementById('modal-save').addEventListener('click', async () => {
   const rowsWrap = document.getElementById('modal-rows');
   const rows = Array.from(rowsWrap.querySelectorAll('div')).filter((n, i) => i !== 0 && n.querySelectorAll('input').length > 0);
   const parsed = rows.map(r => {
-    const name = r.querySelector('input[placeholder="Name"]').value.trim();
+    const name = r.querySelector('input[placeholder="Nom"]').value.trim();
     const obj = { name };
     modalState.keys.forEach(k => {
       const inp = r.querySelector(`input[data-key="${k}"]`);
