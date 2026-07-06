@@ -115,9 +115,18 @@ function renderModal(opts, keys, form) {
   addRowBtn.addEventListener('click', () => {
     const newRow = buildModalRow({}, modalState.keys);
     rowsWrap.insertBefore(newRow, addRowBtn.parentNode);
+    updateSaveButtonState();
   });
   foot.appendChild(addRowBtn);
   rowsWrap.appendChild(foot);
+
+  updateSaveButtonState();
+}
+
+function updateSaveButtonState() {
+  const rows = document.querySelectorAll('#modal-rows .modal-option-row');
+  const hasUnnamedOption = Array.from(rows).some(r => !r.querySelector('[data-field="name"]').value.trim());
+  document.getElementById('modal-save').disabled = hasUnnamedOption;
 }
 
 function buildModalRow(opt, keys) {
@@ -125,11 +134,13 @@ function buildModalRow(opt, keys) {
 
   const inpName = row.querySelector('[data-field="name"]');
   inpName.value = opt && opt.name ? opt.name : '';
+  inpName.addEventListener('input', updateSaveButtonState);
 
   const delBtn = row.querySelector('[data-field="remove"]');
   delBtn.addEventListener('click', e => {
     e.preventDefault();
     row.remove();
+    updateSaveButtonState();
   });
 
   keys.forEach(k => {
@@ -288,7 +299,6 @@ document.getElementById('modal-save').addEventListener('click', async () => {
       select.value = currentValue;
     }
     closeModal();
-    alert('Options saved');
   } else {
     alert('Error saving options');
   }
