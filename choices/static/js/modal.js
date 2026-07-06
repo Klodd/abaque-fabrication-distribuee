@@ -1,5 +1,5 @@
 // --- Modal editor with API persistence ---
-let modalState = { groupId: null, keys: [], defaultKeys: new Set() };
+let modalState = { groupId: null, keys: [], defaultKeys: new Set(), editingKey: null, addingProperty: false };
 const modal = document.getElementById('options-modal');
 const modalRowTemplate = document.getElementById('modal-row-template');
 
@@ -12,13 +12,15 @@ async function openOptionsModal(gid) {
   modalState.defaultKeys = new Set(
     (form && form.dataset.defaultKeys ? form.dataset.defaultKeys.split(',') : []).filter(Boolean)
   );
+  modalState.editingKey = null;
+  modalState.addingProperty = false;
   renderModal(opts, keys, form);
   modal.classList.remove('hidden');
 }
 
 function closeModal() {
   modal.classList.add('hidden');
-  modalState = { groupId: null, keys: [], defaultKeys: new Set() };
+  modalState = { groupId: null, keys: [], defaultKeys: new Set(), editingKey: null, addingProperty: false };
 }
 
 function renderModal(opts, keys, form) {
@@ -35,35 +37,72 @@ function renderModal(opts, keys, form) {
   header.appendChild(hn);
 
   keys.forEach(k => {
-    const hk = document.createElement('div');
-    hk.className = 'w-37.5 shrink-0 flex items-center justify-between gap-1 px-3 py-1 rounded border border-green-500';
-    const span = document.createElement('span');
-    span.textContent = prettyKey(k);
-    span.className = 'text-slate-400 truncate';
-    hk.appendChild(span);
+    const isDefault = modalState.defaultKeys.has(k);
+    const isEditing = modalState.editingKey === k;
 
-    if (modalState.defaultKeys.has(k)) {
-      const lock = document.createElement('span');
-      lock.textContent = '🔒';
-      lock.title = 'Propriété par défaut : non supprimable';
-      lock.className = 'text-slate-500 text-sm shrink-0';
-      hk.appendChild(lock);
-    } else {
-      const rm = document.createElement('button');
-      rm.textContent = '✕';
-      rm.title = 'Retirer la propriété';
-      rm.className = 'bg-transparent border-none text-red-300 cursor-pointer text-base shrink-0 transition hover:text-red-500';
-      rm.addEventListener('click', () => {
-        removePropertyKey(k);
+    const hk = document.createElement('div');
+    hk.className = isEditing
+      ? 'w-45 shrink-0 flex items-center gap-1 px-2 py-1 rounded border border-blue-600'
+      : 'w-37.5 shrink-0 flex items-center justify-between gap-1 px-3 py-1 rounded border border-green-500';
+
+    if (isEditing) {
+      const input = document.createElement('input');
+      input.value = k;
+      input.placeholder = 'PROPRIÉTÉ';
+      input.className = 'min-w-0 flex-1 normal-case bg-slate-800 border border-slate-600 text-slate-200 px-2 py-1 rounded text-xs outline-none focus:border-blue-600';
+      hk.appendChild(input);
+
+      const confirmBtn = document.createElement('button');
+      confirmBtn.textContent = '✓';
+      confirmBtn.title = 'Confirmer le renommage';
+      confirmBtn.className = 'bg-transparent border-none text-green-400 cursor-pointer text-base shrink-0 transition hover:text-green-300';
+      confirmBtn.addEventListener('click', () => renamePropertyKey(k, input.value));
+      hk.appendChild(confirmBtn);
+
+      const delBtn = document.createElement('button');
+      delBtn.textContent = '🗑';
+      delBtn.title = 'Supprimer la propriété';
+      delBtn.className = 'bg-transparent border-none text-red-300 cursor-pointer text-base shrink-0 transition hover:text-red-500';
+      delBtn.addEventListener('click', () => {
+        if (confirm(`Supprimer la propriété "${prettyKey(k)}" ? Cette action est irréversible.`)) {
+          modalState.editingKey = null;
+          removePropertyKey(k);
+        }
       });
-      hk.appendChild(rm);
+      hk.appendChild(delBtn);
+
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); renamePropertyKey(k, input.value); }
+        if (e.key === 'Escape') { e.preventDefault(); modalState.editingKey = null; renderModal(collectModalRows(), modalState.keys, form); }
+      });
+    } else {
+      const span = document.createElement('span');
+      span.textContent = prettyKey(k);
+      span.className = 'text-slate-400 truncate';
+      hk.appendChild(span);
+
+      if (isDefault) {
+        const lock = document.createElement('span');
+        lock.textContent = '🔒';
+        lock.title = 'Propriété par défaut : non supprimable';
+        lock.className = 'text-slate-500 text-sm shrink-0';
+        hk.appendChild(lock);
+      } else {
+        const editBtn = document.createElement('button');
+        editBtn.textContent = '✎';
+        editBtn.title = 'Modifier la propriété';
+        editBtn.className = 'bg-transparent border-none text-slate-400 cursor-pointer text-base shrink-0 transition hover:text-slate-200';
+        editBtn.addEventListener('click', () => {
+          modalState.editingKey = k;
+          renderModal(collectModalRows(), modalState.keys, form);
+        });
+        hk.appendChild(editBtn);
+      }
     }
     header.appendChild(hk);
   });
 
-  const filldiv = document.createElement('div');
-  filldiv.className = 'p-8';
-  header.appendChild(filldiv); // for fill
+  header.appendChild(buildAddPropertyControl(form));
 
   rowsWrap.appendChild(header);
   (opts || []).forEach(o => rowsWrap.appendChild(buildModalRow(o, keys)));
@@ -113,6 +152,79 @@ function removePropertyKey(key) {
   renderModal(current, modalState.keys, form);
 }
 
+function renamePropertyKey(oldKey, newValue) {
+  const newKey = (newValue || '').trim();
+  const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
+  if (!newKey) return alert('Nom de la propriété');
+  if (newKey !== oldKey && modalState.keys.includes(newKey)) return alert('Cette propriété existe déjà');
+
+  const current = collectModalRows();
+  if (newKey !== oldKey) {
+    current.forEach(opt => {
+      if (Object.prototype.hasOwnProperty.call(opt, oldKey)) {
+        opt[newKey] = opt[oldKey];
+        delete opt[oldKey];
+      }
+    });
+    modalState.keys = modalState.keys.map(k => (k === oldKey ? newKey : k));
+  }
+  modalState.editingKey = null;
+  renderModal(current, modalState.keys, form);
+}
+
+function buildAddPropertyControl(form) {
+  const wrap = document.createElement('div');
+  wrap.className = 'shrink-0 flex items-center gap-1';
+
+  if (modalState.addingProperty) {
+    const input = document.createElement('input');
+    input.placeholder = 'PROPRIÉTÉ';
+    input.className = 'w-32 normal-case bg-slate-800 border border-slate-600 text-slate-200 px-2 py-1 rounded text-xs outline-none focus:border-blue-600';
+    wrap.appendChild(input);
+
+    const confirmBtn = document.createElement('button');
+    confirmBtn.textContent = '✓';
+    confirmBtn.title = 'Créer la propriété';
+    confirmBtn.className = 'bg-transparent border-none text-green-400 cursor-pointer text-lg shrink-0 transition hover:text-green-300';
+    confirmBtn.addEventListener('click', () => confirmAddProperty(input.value, form));
+    wrap.appendChild(confirmBtn);
+
+    input.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmAddProperty(input.value, form);
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        modalState.addingProperty = false;
+        renderModal(collectModalRows(), modalState.keys, form);
+      }
+    });
+
+    setTimeout(() => input.focus(), 0);
+  } else {
+    const addBtn = document.createElement('button');
+    addBtn.textContent = '+ Ajouter une propriété';
+    addBtn.className = 'whitespace-nowrap normal-case px-3 py-2 bg-slate-600 text-slate-200 border border-green-500 rounded-md font-medium text-xs cursor-pointer transition hover:bg-slate-600/80 hover:border-slate-400';
+    addBtn.addEventListener('click', () => {
+      modalState.addingProperty = true;
+      renderModal(collectModalRows(), modalState.keys, form);
+    });
+    wrap.appendChild(addBtn);
+  }
+  return wrap;
+}
+
+function confirmAddProperty(value, form) {
+  const v = (value || '').trim();
+  if (!v) return alert('Nom de la propriété');
+  if (modalState.keys.includes(v)) return alert('Cette propriété existe déjà');
+  modalState.keys.push(v);
+  modalState.addingProperty = false;
+  const rows = collectModalRows();
+  renderModal(rows, modalState.keys, form);
+}
+
 function collectModalRows() {
   const rowsWrap = document.getElementById('modal-rows');
   const rows = Array.from(rowsWrap.querySelectorAll('.modal-option-row'));
@@ -145,17 +257,6 @@ function tryParseNumber(v) {
   return isNaN(n) ? v : n;
 }
 
-document.getElementById('modal-add-prop').addEventListener('click', async () => {
-  const v = document.getElementById('modal-new-prop').value.trim();
-  if (!v) return alert('Nom de la propriuété');
-  if (modalState.keys.includes(v)) return alert('Cette propriété existe déjà');
-  modalState.keys.push(v);
-  const rows = collectModalRows();
-  const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
-  renderModal(rows, modalState.keys, form);
-  document.getElementById('modal-new-prop').value = '';
-});
-
 document.getElementById('modal-cancel').addEventListener('click', () => {
   closeModal();
 });
@@ -168,10 +269,7 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     const obj = { name };
     modalState.keys.forEach(k => {
       const inp = r.querySelector(`input[data-key="${k}"]`);
-      if (inp) {
-        const v = inp.value.trim();
-        if (v !== '') obj[k] = tryParseNumber(v);
-      }
+      if (inp) obj[k] = tryParseNumber(inp.value.trim());
     });
     return obj;
   }).filter(o => o.name);
