@@ -1,5 +1,5 @@
 // --- Modal editor with API persistence ---
-let modalState = { groupId: null, keys: [] };
+let modalState = { groupId: null, keys: [], defaultKeys: new Set() };
 const modal = document.getElementById('options-modal');
 const modalRowTemplate = document.getElementById('modal-row-template');
 
@@ -9,13 +9,16 @@ async function openOptionsModal(gid) {
   const opts = await getOptionsForGroup(form) || [];
   const keys = unionKeysGeneric(opts);
   modalState.keys = keys;
+  modalState.defaultKeys = new Set(
+    (form && form.dataset.defaultKeys ? form.dataset.defaultKeys.split(',') : []).filter(Boolean)
+  );
   renderModal(opts, keys, form);
   modal.classList.remove('hidden');
 }
 
 function closeModal() {
   modal.classList.add('hidden');
-  modalState = { groupId: null, keys: [] };
+  modalState = { groupId: null, keys: [], defaultKeys: new Set() };
 }
 
 function renderModal(opts, keys, form) {
@@ -24,28 +27,37 @@ function renderModal(opts, keys, form) {
   rowsWrap.innerHTML = '';
 
   const header = document.createElement('div');
-  header.className = 'flex gap-2 p-1 mb-3 font-bold text-slate-400 text-sm uppercase tracking-wide';
+  header.className = 'flex w-fit gap-2 p-1 mb-3 font-bold text-slate-400 text-sm uppercase tracking-wide';
 
   const hn = document.createElement('div');
   hn.textContent = 'Nom';
-  hn.className = 'flex-1 min-w-37.5 flex items-center justify-start border border-green-500 rounded text-slate-400';
+  hn.className = 'w-37.5 shrink-0 flex items-center justify-start px-3 py-1 border border-green-500 rounded text-slate-400';
   header.appendChild(hn);
 
   keys.forEach(k => {
     const hk = document.createElement('div');
-    hk.className = 'flex-1 min-w-37.5 flex flex-col items-center justify-center rounded border border-green-500';
+    hk.className = 'w-37.5 shrink-0 flex items-center justify-between gap-1 px-3 py-1 rounded border border-green-500';
     const span = document.createElement('span');
     span.textContent = prettyKey(k);
-    span.className = 'px-2 py-1 text-slate-400';
+    span.className = 'text-slate-400 truncate';
     hk.appendChild(span);
-    const rm = document.createElement('button');
-    rm.textContent = '✕';
-    rm.title = 'Retirer la propriété';
-    rm.className = 'bg-transparent border-none text-red-300 cursor-pointer text-base px-2 ml-auto transition hover:text-red-500';
-    rm.addEventListener('click', () => {
-      removePropertyKey(k);
-    });
-    hk.appendChild(rm);
+
+    if (modalState.defaultKeys.has(k)) {
+      const lock = document.createElement('span');
+      lock.textContent = '🔒';
+      lock.title = 'Propriété par défaut : non supprimable';
+      lock.className = 'text-slate-500 text-sm shrink-0';
+      hk.appendChild(lock);
+    } else {
+      const rm = document.createElement('button');
+      rm.textContent = '✕';
+      rm.title = 'Retirer la propriété';
+      rm.className = 'bg-transparent border-none text-red-300 cursor-pointer text-base shrink-0 transition hover:text-red-500';
+      rm.addEventListener('click', () => {
+        removePropertyKey(k);
+      });
+      hk.appendChild(rm);
+    }
     header.appendChild(hk);
   });
 
@@ -84,7 +96,7 @@ function buildModalRow(opt, keys) {
   keys.forEach(k => {
     const inp = document.createElement('input');
     inp.placeholder = prettyKey(k);
-    inp.className = 'modal-input flex-1 max-w-37.5 bg-slate-800 border border-slate-600 text-slate-200 px-3 py-2 rounded text-sm outline-none transition focus:border-blue-600 focus:ring-3 focus:ring-blue-600/10';
+    inp.className = 'modal-input w-37.5 shrink-0 bg-slate-800 border border-slate-600 text-slate-200 px-3 py-2 rounded text-sm outline-none transition focus:border-blue-600 focus:ring-3 focus:ring-blue-600/10';
     inp.value = opt && opt[k] !== undefined ? String(opt[k]) : '';
     inp.dataset.key = k;
     row.insertBefore(inp, delBtn);
@@ -94,6 +106,7 @@ function buildModalRow(opt, keys) {
 }
 
 function removePropertyKey(key) {
+  if (modalState.defaultKeys.has(key)) return;
   modalState.keys = modalState.keys.filter(k => k !== key);
   const current = collectModalRows();
   const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);

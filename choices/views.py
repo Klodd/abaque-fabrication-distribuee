@@ -155,6 +155,15 @@ DEFAULT_GROUPS = [
     ]},
 ]
 
+# Property keys (besides "name") that ship with each group's default options.
+# The cost formulas in app.js depend on these, so the options modal must not
+# let users delete them - only user-added properties are removable there.
+for _group in DEFAULT_GROUPS:
+    _group["default_keys"] = sorted({
+        key for option in _group["options"] for key in option.keys() if key != "name"
+    })
+del _group
+
 
 MAX_CONFIGURATIONS_BODY_BYTES = 256 * 1024
 MAX_OPTIONS_PER_GROUP = 200
