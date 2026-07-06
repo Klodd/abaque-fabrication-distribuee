@@ -24,7 +24,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "choices",
+    "abaque",
 ]
 
 MIDDLEWARE = [
@@ -41,7 +41,7 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_SSL_REDIRECT = True
 
-ROOT_URLCONF = "myproject.urls"
+ROOT_URLCONF = "project.urls"
 
 TEMPLATES = [
     {
@@ -57,7 +57,7 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = "myproject.wsgi.application"
+WSGI_APPLICATION = "project.wsgi.application"
 
 DATABASES = {
     "default": {

@@ -75,8 +75,8 @@ En production (`DEBUG=false`), les cookies sécurisés et la redirection HTTPS (
 ## Structure du projet
 
 ```
-├── myproject/               # Configuration Django (settings, urls, wsgi)
-├── choices/                 # Application principale
+├── project/                 # Configuration Django (settings, urls, wsgi)
+├── abaque/                  # Application principale
 │   ├── views.py             # Vues + DEFAULT_GROUPS (tarifs par défaut)
 │   ├── models.py            # UserConfiguration, UserSavedJob
 │   ├── urls.py              # Routes de l'app et de l'API
@@ -84,7 +84,7 @@ En production (`DEBUG=false`), les cookies sécurisés et la redirection HTTPS (
 │   │   ├── app.js           # Calculs du récapitulatif, état du calculateur
 │   │   ├── modal.js         # Éditeur d'options + appels API
 │   │   └── table.js         # Tableau des tâches (lignes qty/temps)
-│   ├── templates/choices/   # Page principale, section de configuration, liste des projets
+│   ├── templates/abaque/    # Page principale, section de configuration, liste des projets
 │   └── tests.py             # Suite de tests (authentification, API, projets)
 ├── templates/               # Gabarits d'authentification (login)
 ├── static/css/              # tailwind.css (source) → output.css (compilé)
@@ -93,7 +93,7 @@ En production (`DEBUG=false`), les cookies sécurisés et la redirection HTTPS (
 
 ### Modèle de données
 
-- **`DEFAULT_GROUPS`** (`choices/views.py`) : les neuf groupes d'options et leurs tarifs par défaut, définis côté serveur. Les identifiants de groupe (1 à 9) sont stables et référencés par le JavaScript.
+- **`DEFAULT_GROUPS`** (`abaque/views.py`) : les neuf groupes d'options et leurs tarifs par défaut, définis côté serveur. Les identifiants de groupe (1 à 9) sont stables et référencés par le JavaScript.
 - **`UserConfiguration`** : surcharge des options d'un groupe pour un utilisateur (JSON). En son absence, les valeurs par défaut s'appliquent.
 - **`UserSavedJob`** : instantané complet du calculateur (sélections, lignes de tâches, nombre d'exemplaires) sauvegardé sous un nom.
 

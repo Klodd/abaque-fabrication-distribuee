@@ -1,7 +1,7 @@
 // API-based configuration and job management
 const API_BASE = '/api/';
 
-// Stable group id -> name mapping (see choices/templates/choices/configuration_section.html,
+// Stable group id -> name mapping (see abaque/templates/abaque/configuration_section.html,
 // group ids are assigned server-side and do not change even if the group's display name does):
 // 1=Tarifs adhérent, 2=Matière, 3=Consommable, 4=Logiciel de modélisation,
 // 5=Type de prestation, 6=Type de licence, 7=Majoration, 8=Contribution asso, 9=Machine

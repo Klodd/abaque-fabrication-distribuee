@@ -177,7 +177,7 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect("choices:index")
+            return redirect("abaque:index")
         else:
             return render(request, "auth/login.html", {"error": "Invalid credentials"})
 
@@ -204,7 +204,7 @@ def index(request):
         group_copy["options"] = user_configs.get(g["id"], g["options"])
         groups.append(group_copy)
 
-    return render(request, "choices/index.html", {"groups": groups})
+    return render(request, "abaque/index.html", {"groups": groups})
 
 
 def _validate_configurations_payload(data):
@@ -283,7 +283,7 @@ def api_get_saved_jobs(request):
     """Get all user saved jobs or save a new job"""
     if request.method == "GET":
         jobs = UserSavedJob.objects.filter(user=request.user)
-        return render(request, "choices/saved_jobs_list.html", {"jobs": jobs})
+        return render(request, "abaque/saved_jobs_list.html", {"jobs": jobs})
 
     # POST: Save a new job
     name = request.POST.get("name", "Unnamed Job")
