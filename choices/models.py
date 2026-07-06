@@ -26,7 +26,6 @@ class UserSavedJob(models.Model):
     """Store user saved job states"""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="saved_jobs")
     name = models.CharField(max_length=255)
-    state_id = models.CharField(max_length=1024)  # base64url encoded state
     state_json = models.JSONField(default=dict)  # {choices: {...}, rows: [...]}
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

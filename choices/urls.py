@@ -5,7 +5,6 @@ app_name = "choices"
 
 urlpatterns = [
     path("", views.index, name="index"),
-    path("update/", views.update_choice, name="update"),
     # API endpoints
     path("api/configurations/", views.api_get_configurations, name="api_configurations"),
     path("api/saved-jobs/", views.api_get_saved_jobs, name="api_get_saved_jobs"),

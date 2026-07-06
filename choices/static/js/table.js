@@ -17,24 +17,17 @@ function addRow(qty = '', tps = '', sup = 0) {
   attachRowHandlers(tr);
   updateLineNumbers();
   updateSummary();
-  serializeStateToUI();
-}
-
-function escapeHtml(s) {
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');
 }
 
 function attachRowHandlers(tr) {
   tr.querySelectorAll('input').forEach(inp => inp.addEventListener('input', () => {
     updateSummary();
-    serializeStateToUI();
   }));
   tr.querySelector('.del-row').addEventListener('click', (e) => {
     e.preventDefault();
     tr.remove();
     updateLineNumbers();
     updateSummary();
-    serializeStateToUI();
   });
 }
 

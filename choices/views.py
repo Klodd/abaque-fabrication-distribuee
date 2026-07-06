@@ -1,10 +1,9 @@
 from django.shortcuts import render, redirect
-from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import JsonResponse
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
-from django.views.decorators.csrf import ensure_csrf_cookie, csrf_protect
+from django.views.decorators.csrf import csrf_protect
 import json
 from .models import UserConfiguration, UserSavedJob
 
@@ -23,6 +22,7 @@ DEFAULT_GROUPS = [
         {"name":"LaserMaxx 3mm","type":"panneau_laser","epaisseur":3,"prix":105,"url_achat":""},
         {"name":"CP Ordinaire 5mm","type":"panneau_laser","epaisseur":5,"prix":23.9,"url_achat":""},
         {"name":"CP Ordinaire 10mm","type":"panneau_laser","epaisseur":10,"prix":37,"url_achat":""},
+        # NOTE: prix 23.9 is identical to "CP Ordinaire 5mm" above; looks like a copy-paste, to be verified.
         {"name":"CP Ordinaire 15mm","type":"panneau_laser","epaisseur":15,"prix":23.9,"url_achat":""},
         {"name":"CP Ordinaire 18mm","type":"panneau_laser","epaisseur":18,"prix":58.9,"url_achat":""},
         {"name":"Bois BALSA 4mm","type":"panneau_laser","epaisseur":4,"prix":145,"url_achat":""},
@@ -156,26 +156,8 @@ DEFAULT_GROUPS = [
 ]
 
 
-def register_view(request):
-    if request.method == "POST":
-        username = request.POST.get("username")
-        password = request.POST.get("password")
-        password_confirm = request.POST.get("password_confirm")
-
-        if not username or not password:
-            return render(request, "auth/register.html", {"error": "Username and password required"})
-        
-        if password != password_confirm:
-            return render(request, "auth/register.html", {"error": "Passwords do not match"})
-
-        if User.objects.filter(username=username).exists():
-            return render(request, "auth/register.html", {"error": "Username already exists"})
-
-        user = User.objects.create_user(username=username, password=password)
-        login(request, user)
-        return redirect("choices:index")
-
-    return render(request, "auth/register.html")
+MAX_CONFIGURATIONS_BODY_BYTES = 256 * 1024
+MAX_OPTIONS_PER_GROUP = 200
 
 
 def login_view(request):
@@ -195,42 +177,55 @@ def login_view(request):
 
 def logout_view(request):
     logout(request)
-    return redirect("/login/")
+    return redirect("login")
 
 
-@login_required(login_url="/login/")
+@login_required
 def index(request):
     """Main app page with groups"""
+    user_configs = {
+        config.group_id: config.options_json
+        for config in UserConfiguration.objects.filter(user=request.user)
+    }
+
     groups = []
     for g in DEFAULT_GROUPS:
         group_copy = g.copy()
         # Get user's customized options if they exist, otherwise use defaults
-        try:
-            config = UserConfiguration.objects.get(user=request.user, group_id=g["id"])
-            group_copy["options"] = config.options_json
-        except UserConfiguration.DoesNotExist:
-            group_copy["options"] = g["options"]
-        
-        group_copy["options_json"] = json.dumps(group_copy["options"])
+        group_copy["options"] = user_configs.get(g["id"], g["options"])
         groups.append(group_copy)
 
     return render(request, "choices/index.html", {"groups": groups})
 
 
-@login_required(login_url="/login/")
-def update_choice(request):
-    """HTMX endpoint for choice summary updates"""
-    if request.method != "POST":
-        return HttpResponseBadRequest("Only POST allowed")
-    group = request.POST.get("group")
-    value = request.POST.get("value")
-    if not group or value is None:
-        return HttpResponseBadRequest("Missing data")
-    html = f'<div id="summary-{group}">Selected: <strong>{value}</strong></div>'
-    return HttpResponse(html)
+def _validate_configurations_payload(data):
+    """Validate the configurations POST body. Returns an error message, or None if valid."""
+    if not isinstance(data, dict):
+        return "Invalid payload: expected an object"
+
+    for group_id, options in data.items():
+        try:
+            int(group_id)
+        except (TypeError, ValueError):
+            return "Invalid payload: group id must be an integer"
+
+        if not isinstance(options, list):
+            return "Invalid payload: options must be a list"
+
+        if len(options) > MAX_OPTIONS_PER_GROUP:
+            return "Invalid payload: too many options for a group"
+
+        for option in options:
+            if not isinstance(option, dict):
+                return "Invalid payload: each option must be an object"
+            name = option.get("name")
+            if not isinstance(name, str) or not name.strip():
+                return "Invalid payload: each option requires a non-empty name"
+
+    return None
 
 
-@login_required(login_url="/login/")
+@login_required
 @csrf_protect
 @require_http_methods(["GET", "POST"])
 def api_get_configurations(request):
@@ -241,10 +236,21 @@ def api_get_configurations(request):
         for config in configs:
             result[str(config.group_id)] = config.options_json
         return JsonResponse(result)
-    
+
     # POST: Save configurations
+    if len(request.body) > MAX_CONFIGURATIONS_BODY_BYTES:
+        return JsonResponse({"error": "Request body too large"}, status=400)
+
     try:
         data = json.loads(request.body)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+    error = _validate_configurations_payload(data)
+    if error:
+        return JsonResponse({"error": error}, status=400)
+
+    try:
         for group_id, options in data.items():
             group_id = int(group_id)
             group = next((g for g in DEFAULT_GROUPS if g["id"] == group_id), None)
@@ -258,50 +264,62 @@ def api_get_configurations(request):
                     }
                 )
         return JsonResponse({"success": True})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
+    except (ValueError, TypeError):
+        return JsonResponse({"error": "Invalid configuration data"}, status=400)
 
 
-@login_required(login_url="/login/")
+@login_required
 @require_http_methods(["GET", "POST"])
 def api_get_saved_jobs(request):
     """Get all user saved jobs or save a new job"""
     if request.method == "GET":
         jobs = UserSavedJob.objects.filter(user=request.user)
         return render(request, "choices/saved_jobs_list.html", {"jobs": jobs})
-    
+
     # POST: Save a new job
+    name = request.POST.get("name", "Unnamed Job")
+    state_raw = request.POST.get("state", "{}")
+
     try:
-        name = request.POST.get("name", "Unnamed Job")
-        state_id = request.POST.get("state_id", "")
-        state_json = request.POST.get("state", {})
-        
-        job = UserSavedJob.objects.create(
-            user=request.user,
-            name=name,
-            state_id=state_id,
-            state_json=state_json
-        )
-        return JsonResponse({"id": job.id, "name": job.name, "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S")})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
+        state_json = json.loads(state_raw)
+    except json.JSONDecodeError:
+        return JsonResponse({"error": "Invalid state data"}, status=400)
+
+    if not isinstance(state_json, dict):
+        return JsonResponse({"error": "Invalid state data"}, status=400)
+
+    job = UserSavedJob.objects.create(
+        user=request.user,
+        name=name,
+        state_json=state_json
+    )
+    return JsonResponse({"id": job.id, "name": job.name, "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S")})
 
 
-@login_required(login_url="/login/")
+@login_required
 @require_http_methods(["POST"])
 def apply_job(request, job_id):
     """Apply a saved job"""
     try:
         job = UserSavedJob.objects.get(id=job_id, user=request.user)
-        return JsonResponse({
-            "state": job.state_json,
-            "success": True
-        })
     except UserSavedJob.DoesNotExist:
         return JsonResponse({"error": "Job not found"}, status=404)
 
+    state = job.state_json
+    if isinstance(state, str):
+        # Normalize legacy rows that stored the state as a raw JSON string.
+        try:
+            state = json.loads(state)
+        except json.JSONDecodeError:
+            state = {}
 
-@login_required(login_url="/login/")
+    return JsonResponse({
+        "state": state,
+        "success": True
+    })
+
+
+@login_required
 @require_http_methods(["DELETE"])
 def api_delete_job(request, job_id):
     """Delete a saved job"""
@@ -311,67 +329,3 @@ def api_delete_job(request, job_id):
         return JsonResponse({"success": True})
     except UserSavedJob.DoesNotExist:
         return JsonResponse({"error": "Job not found"}, status=404)
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
-
-
-@login_required(login_url="/login/")
-@require_http_methods(["POST"])
-def api_export_configurations(request):
-    """Export all configurations as JSON"""
-    configs = UserConfiguration.objects.filter(user=request.user)
-    result = {}
-    for config in configs:
-        result[str(config.group_id)] = config.options_json
-    
-    response = HttpResponse(json.dumps(result, indent=2), content_type="application/json")
-    response["Content-Disposition"] = "attachment; filename=group_options_config.json"
-    return response
-
-
-@login_required(login_url="/login/")
-@require_http_methods(["POST"])
-def api_import_configurations(request):
-    """Import configurations from JSON"""
-    try:
-        data = json.loads(request.body)
-        for group_id, options in data.items():
-            group_id = int(group_id)
-            group = next((g for g in DEFAULT_GROUPS if g["id"] == group_id), None)
-            if group:
-                UserConfiguration.objects.update_or_create(
-                    user=request.user,
-                    group_id=group_id,
-                    defaults={
-                        "group_name": group["name"],
-                        "options_json": options,
-                    }
-                )
-        return JsonResponse({"success": True})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=400)
-
-
-
-
-
-
-@login_required
-def admin_dashboard(request):
-    if not request.user.is_staff:
-        return redirect('choices:index')
-    users = User.objects.all()
-    context = {
-        'users': users,
-    }
-    return render(request, 'admin/dashboard.html', context)
-
-# def register(request):
-#     if request.method == 'POST':
-#         form = CustomUserCreationForm(request.POST)
-#         if form.is_valid():
-#             user = form.save()
-#             login(request, user)
-#             return redirect('choices:index')
-
-

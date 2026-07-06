@@ -1,6 +1,30 @@
 // API-based configuration and job management
 const API_BASE = '/api/';
 
+// Stable group id -> name mapping (see choices/templates/choices/configuration_section.html,
+// group ids are assigned server-side and do not change even if the group's display name does):
+// 1=Tarifs adhérent, 2=Matière, 3=Consommable, 4=Logiciel de modélisation,
+// 5=Type de prestation, 6=Type de licence, 7=Majoration, 8=Contribution asso, 9=Machine
+const GROUP_IDS = {
+  ADHERENT: 1,
+  MATERIAL: 2,
+  CONSUMABLE: 3,
+  SOFTWARE: 4,
+  PRESTATION: 5,
+  LICENSE: 6,
+  MAJORATION: 7,
+  CONTRIBUTION: 8,
+  MACHINE: 9
+};
+
+function getChoiceFormByGroupId(gid) {
+  return document.querySelector(`.choice-form[data-group-id="${gid}"]`);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');
+}
+
 // HTMX event listener
 document.body.addEventListener('htmx:afterRequest', function(evt) {
   if (evt.detail.requestConfig.path.includes("/apply/") && evt.detail.requestConfig.path.includes("/saved-jobs/")) {
@@ -8,8 +32,8 @@ document.body.addEventListener('htmx:afterRequest', function(evt) {
     try {
       const data = JSON.parse(response);
       if (data.state) {
-        applyState(JSON.parse(data.state));
-        serializeStateToUI();
+        const state = typeof data.state === 'string' ? JSON.parse(data.state) : data.state;
+        applyState(state);
         updateAllDetailsAndSummary();
       }
     } catch (e) {
@@ -45,21 +69,21 @@ function updateAllDetailsAndSummary() {
 
 
 function updateSummary() {
-  // Find current selections and get values for groups
-  const machineForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Machine');
-  const materialForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Matière');
-  const adherentForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Tarifs adhérent pour les machines');
-  const consumableForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Consommable');
-  const softwareForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Logiciel de modélisation');
-  const prestationForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de prestation');
-  const licenseForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Type de licence');
-  const majorationForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Majoration pour urgence, déplacements...');
-  const contribitionForm = Array.from(document.querySelectorAll('.choice-form')).find(f => f.dataset.groupName === 'Contribution au projet asso');
+  // Find current selections and get values for groups (looked up by stable group id, see GROUP_IDS above)
+  const machineForm = getChoiceFormByGroupId(GROUP_IDS.MACHINE);
+  const materialForm = getChoiceFormByGroupId(GROUP_IDS.MATERIAL);
+  const adherentForm = getChoiceFormByGroupId(GROUP_IDS.ADHERENT);
+  const consumableForm = getChoiceFormByGroupId(GROUP_IDS.CONSUMABLE);
+  const softwareForm = getChoiceFormByGroupId(GROUP_IDS.SOFTWARE);
+  const prestationForm = getChoiceFormByGroupId(GROUP_IDS.PRESTATION);
+  const licenseForm = getChoiceFormByGroupId(GROUP_IDS.LICENSE);
+  const majorationForm = getChoiceFormByGroupId(GROUP_IDS.MAJORATION);
+  const contribitionForm = getChoiceFormByGroupId(GROUP_IDS.CONTRIBUTION);
 
   // Calculate total material (sum of col-qty) * prix
   const qtyValues = Array.from(document.querySelectorAll('.col-qty')).map(i => parseFloat(i.value) || 0);
   const totalQty = qtyValues.reduce((a, b) => a + b, 0);
-  
+
   const materialPrice = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix : 0;
   const materialName = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
 
@@ -68,17 +92,17 @@ function updateSummary() {
   document.getElementById('cost-summary-total-material-cost').textContent = materialCost;
 //   document.getElementById('cost-summary-material-cost').textContent = materialPrice;
   document.getElementById('material-name').textContent = materialName;
-  
+
   // Calculate total operating time (sum of col-tps)
   const tpsValues = Array.from(document.querySelectorAll('.col-tps')).map(i => parseFloat(i.value) || 0);
   const totalTps = tpsValues.reduce((a, b) => a + b, 0).toFixed(2);
   document.getElementById('total-tps').textContent = parseFloat(totalTps).toFixed(0);
-  
+
   // Calculate total additional operator time (sum of col-sup)
   const supValues = Array.from(document.querySelectorAll('.col-sup')).map(i => parseFloat(i.value) || 0);
   const totalAdditionalTime = supValues.reduce((a, b) => a + b, 0).toFixed(2);
   document.getElementById('total-additional-time').textContent = parseFloat(totalAdditionalTime).toFixed(0);
-  
+
   // Get operator time percentage for machine
   const machinePercentTimeForOperator = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcent_temps || 0 : 0;
   const machineName = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
@@ -92,21 +116,25 @@ function updateSummary() {
   // Calculate machine cost if machine has prix and totalTps
   const machinePriceNormal = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_normal : 1;
   const machinePriceAdherent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_adherent : 1;
-  const is_adherent = adherentForm.querySelector('select[name="value"]').selectedOptions[0].value == "Oui" ? true : false;
+  const adherentSelected = adherentForm ? adherentForm.querySelector('select[name="value"]').selectedOptions[0] : null;
+  const is_adherent = adherentSelected ? adherentSelected.value == "Oui" : false;
   const machinePrice = is_adherent ? machinePriceAdherent : machinePriceNormal;
-  const machineCost = (parseFloat(totalTps) * parseFloat(machinePrice)).toFixed(2);
+  // machinePrice is €/hour, totalTps is in minutes, so convert to hours
+  const machineCost = ((parseFloat(totalTps) / 60) * parseFloat(machinePrice)).toFixed(2);
   document.getElementById('cost-summary-total-machine-cost').textContent = machineCost;
   document.getElementById('cost-summary-machine-cost').textContent = machinePrice;
 //   document.getElementById('cost-summary-machine-name').textContent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
 //   document.getElementById('cost-summary-is-adherent').textContent = is_adherent ? "(Tarif adhérent)" : "";
-  
+
   // Calculate consommable cost
   const consumablePrice = consumableForm ? consumableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
   const consumableLifetime = consumableForm ? consumableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.duree_vie_totale_minutes || 0 : 0;
 
-  const consumableCost = (totalTps * consumablePrice / consumableLifetime).toFixed(2);
+  const consumableLifetimeNum = parseFloat(consumableLifetime) || 0;
+  const consumableCost = consumableLifetimeNum > 0 ? (totalTps * consumablePrice / consumableLifetimeNum).toFixed(2) : '0.00';
+  const consumableCostPerMin = consumableLifetimeNum > 0 ? (consumablePrice / consumableLifetimeNum).toFixed(2) : '0.00';
   document.getElementById('cost-summary-consumable-cost').textContent = consumableCost;
-  document.getElementById('cost-summary-consumable-per-min').textContent = parseFloat(consumablePrice / consumableLifetime).toFixed(2);
+  document.getElementById('cost-summary-consumable-per-min').textContent = consumableCostPerMin;
 
   const softwareMonthlyPrice = softwareForm ? softwareForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_mensuel || 0 : 0;
   const softwareCost = (softwareMonthlyPrice * (totalTps / (30 * 24 * 60))).toFixed(2);
@@ -131,12 +159,12 @@ function updateSummary() {
 
   const additionalContribution = contribitionForm ? contribitionForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcentage_contribution || 0 : 0;
   document.getElementById('cost-summary-asso-contribution').textContent = (parseFloat(additionalContribution) * parseFloat(grossCost)).toFixed(2);
-  
+
   // FINAL COST
   const finalCost = (parseFloat(grossCost) - parseFloat(humanCost) + parseFloat(majorationRate) * parseFloat(humanCost) + parseFloat(additionalContribution) * parseFloat(grossCost)).toFixed(2);
   const numberOfCopies = parseInt(document.getElementById('number-of-copies').value) || 1;
-  document.getElementById('cost-summary-final-cost-unit').textContent = finalCost;
-  document.getElementById('cost-summary-final-cost').textContent = (parseFloat(finalCost) * numberOfCopies).toFixed(2);
+  document.getElementById('cost-summary-final-cost-unit').textContent = finalCost + '€';
+  document.getElementById('cost-summary-final-cost').textContent = (parseFloat(finalCost) * numberOfCopies).toFixed(2) + '€';
 }
 
 function prettyKey(k) {
@@ -158,7 +186,7 @@ function updateChoiceDetails(form) {
     detailsEl.innerHTML = '';
     return;
   }
-  
+
   const optionName = opt.value;
   const ds = opt.dataset || {};
   const properties = [];
@@ -168,15 +196,15 @@ function updateChoiceDetails(form) {
     if (v === undefined || v === null || String(v).trim() === '') continue;
     properties.push({ key: prettyKey(k), value: v });
   }
-  
-  // Build table HTML
+
+  // Build table HTML (option name/values are user-editable via the modal, so escape them)
   let html = `<table style="border-collapse: collapse; font-size: 0.85em; margin-top: 6px; width: 100%; color:oklch(96.8% 0.007 247.896)">`;
-  html += `<tr style="background-color: oklch(26.6% 0.065 152.934);"><td style="border: 1px solid oklch(27.9% 0.041 260.031); border-bottom:3px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; font-weight: bold;">Choix</td><td style="border: 1px solid oklch(27.9% 0.041 260.031); border-bottom: 3px solid oklch(27.9% 0.041 260.031); padding: 4px 6px;">${optionName}</td></tr>`;
-  
+  html += `<tr style="background-color: oklch(26.6% 0.065 152.934);"><td style="border: 1px solid oklch(27.9% 0.041 260.031); border-bottom:3px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; font-weight: bold;">Choix</td><td style="border: 1px solid oklch(27.9% 0.041 260.031); border-bottom: 3px solid oklch(27.9% 0.041 260.031); padding: 4px 6px;">${escapeHtml(optionName)}</td></tr>`;
+
   properties.forEach(prop => {
-    html += `<tr><td style="border: 1px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; background-color: oklch(44.8% 0.119 151.328)">${prop.key}</td><td style="border: 1px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; background-color: oklch(44.8% 0.119 151.328)">${prop.value}</td></tr>`;
+    html += `<tr><td style="border: 1px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; background-color: oklch(44.8% 0.119 151.328)">${escapeHtml(prop.key)}</td><td style="border: 1px solid oklch(27.9% 0.041 260.031); padding: 4px 6px; background-color: oklch(44.8% 0.119 151.328)">${escapeHtml(prop.value)}</td></tr>`;
   });
-  
+
   html += `</table>`;
   detailsEl.innerHTML = html;
 }
@@ -196,17 +224,6 @@ function buildState() {
   }));
   const numberOfCopies = document.getElementById('number-of-copies').value;
   return { choices, rows, numberOfCopies };
-}
-
-function base64UrlEncode(str) {
-  return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function serializeStateToUI() {
-  const state = buildState();
-  const s = JSON.stringify(state);
-  const id = base64UrlEncode(s);
-  return id;
 }
 
 function applyState(obj) {
@@ -231,13 +248,11 @@ function applyState(obj) {
 
 document.querySelectorAll('.choice-form select').forEach(s => s.addEventListener('change', (e) => {
   const f = s.closest('.choice-form');
-  serializeStateToUI();
   updateChoiceDetails(f);
   updateSummary();
 }));
 
 document.getElementById('number-of-copies').addEventListener('change', () => {
-  serializeStateToUI();
   updateSummary();
 });
 
@@ -245,6 +260,5 @@ document.getElementById('number-of-copies').addEventListener('change', () => {
 window.addEventListener('load', async () => {
   // populateSavedList();
   updateSummary();
-  serializeStateToUI();
   document.querySelectorAll('.choice-form').forEach(f => updateChoiceDetails(f));
 });
