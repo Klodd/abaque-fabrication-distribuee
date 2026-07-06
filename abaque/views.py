@@ -202,7 +202,7 @@ def login_view(request):
             login(request, user)
             return redirect("abaque:index")
         else:
-            return render(request, "auth/login.html", {"error": "Invalid credentials"})
+            return render(request, "auth/login.html", {"error": "Identifiants invalides"})
 
     return render(request, "auth/login.html")
 

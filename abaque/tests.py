@@ -204,7 +204,7 @@ class PendingApprovalTests(TestCase):
     def test_index_shows_pending_approval(self):
         response = self.client.get(reverse("abaque:index"))
         self.assertEqual(response.status_code, 403)
-        self.assertContains(response, "pending approval", status_code=403)
+        self.assertContains(response, "en attente de validation", status_code=403)
 
     def test_api_configurations_blocked_until_approved(self):
         response = self.client.get(reverse("abaque:api_configurations"))

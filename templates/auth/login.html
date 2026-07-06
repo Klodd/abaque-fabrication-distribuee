@@ -1,22 +1,22 @@
 {% extends "base_auth.html" %}
 
-{% block title %}Login - Abaque Fabrication{% endblock %}
+{% block title %}Connexion - Abaque Fabrication{% endblock %}
 
 {% block content %}
-    <h1 class="text-2xl font-bold text-center mb-8 text-gray-800">Login</h1>
+    <h1 class="text-2xl font-bold text-center mb-8 text-gray-800">Connexion</h1>
     <form method="post">
         {% csrf_token %}
         <div class="mb-5">
-            <label for="username" class="block mb-2 text-gray-600 font-medium">Username</label>
+            <label for="username" class="block mb-2 text-gray-600 font-medium">Nom d'utilisateur</label>
             <input type="text" id="username" name="username" required autofocus class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200">
         </div>
         <div class="mb-6">
-            <label for="password" class="block mb-2 text-gray-600 font-medium">Password</label>
+            <label for="password" class="block mb-2 text-gray-600 font-medium">Mot de passe</label>
             <input type="password" id="password" name="password" required class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-200">
         </div>
-        <button type="submit" class="w-full p-3 bg-indigo-500 text-white font-semibold rounded-md hover:bg-purple-600 transition-colors">Login</button>
+        <button type="submit" class="w-full p-3 bg-indigo-500 text-white font-semibold rounded-md hover:bg-purple-600 transition-colors">Se connecter</button>
     </form>
     <p class="mt-6 text-center text-sm text-gray-600">
-        No account yet? <a href="{% url 'register' %}" class="text-indigo-500 font-medium hover:underline">Sign up</a>
+        Pas encore de compte ? <a href="{% url 'register' %}" class="text-indigo-500 font-medium hover:underline">S'inscrire</a>
     </p>
 {% endblock %}

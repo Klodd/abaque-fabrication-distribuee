@@ -19,7 +19,6 @@ class RegistrationForm(UserCreationForm):
             "150 caractères maximum. Lettres, chiffres et @/./+/-/_ uniquement."
         )
         self.fields["password1"].label = "Mot de passe"
-        self.fields["password1"].help_text = None
         self.fields["password2"].label = "Confirmation du mot de passe"
         self.fields["password2"].help_text = "Saisissez le même mot de passe que ci-dessus, pour vérification."
         for field in self.fields.values():

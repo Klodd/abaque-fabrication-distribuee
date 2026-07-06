@@ -15,6 +15,8 @@ else:
 
 LOGIN_URL = "/login/"
 
+LANGUAGE_CODE = "fr"
+
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
 INSTALLED_APPS = [

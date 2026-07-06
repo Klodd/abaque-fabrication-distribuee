@@ -1,9 +1,9 @@
 {% extends "base_auth.html" %}
 
-{% block title %}Sign up - Abaque Fabrication{% endblock %}
+{% block title %}Inscription - Abaque Fabrication{% endblock %}
 
 {% block content %}
-    <h1 class="text-2xl font-bold text-center mb-8 text-gray-800">Sign up</h1>
+    <h1 class="text-2xl font-bold text-center mb-8 text-gray-800">Inscription</h1>
     <form method="post">
         {% csrf_token %}
         {% for field in form %}
@@ -18,9 +18,9 @@
                 {% endfor %}
             </div>
         {% endfor %}
-        <button type="submit" class="w-full p-3 bg-indigo-500 text-white font-semibold rounded-md hover:bg-purple-600 transition-colors">Sign up</button>
+        <button type="submit" class="w-full p-3 bg-indigo-500 text-white font-semibold rounded-md hover:bg-purple-600 transition-colors">S'inscrire</button>
     </form>
     <p class="mt-6 text-center text-sm text-gray-600">
-        Already have an account? <a href="{% url 'login' %}" class="text-indigo-500 font-medium hover:underline">Log in</a>
+        Vous avez déjà un compte ? <a href="{% url 'login' %}" class="text-indigo-500 font-medium hover:underline">Se connecter</a>
     </p>
 {% endblock %}
