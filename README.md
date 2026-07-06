@@ -14,6 +14,7 @@ Chaque utilisateur peut personnaliser les tarifs (machines, matières, consommab
 - **Options personnalisables par utilisateur** : chaque groupe est éditable via une fenêtre modale (✏️) — ajout/suppression d'options et de propriétés, sauvegardées en base par utilisateur sans toucher aux valeurs par défaut.
 - **Projets sauvegardés** : enregistrement de l'état complet du calculateur sous un nom, rechargement et suppression en un clic (HTMX).
 - **Multi-utilisateurs** : chaque utilisateur ne voit que ses propres configurations et projets. Interface d'administration Django incluse.
+- **Inscription auto-validée par un admin** : n'importe qui peut créer un compte (`/register/`), mais l'accès à l'application reste bloqué (page d'attente) tant qu'un administrateur n'a pas ajouté l'utilisateur au groupe *Utilisateurs actifs* depuis l'admin Django.
 
 ## Stack technique
 
@@ -42,14 +43,20 @@ pip install -r requirements.txt
 # 2. Base de données
 python manage.py migrate
 
-# 3. Créer un premier utilisateur (l'inscription publique est désactivée)
+# 3. Créer un premier utilisateur (superadmin)
 python manage.py createsuperuser
 
 # 4. Lancer le serveur
 python manage.py runserver
 ```
 
-Ouvrir <http://127.0.0.1:8000/> et se connecter. Les utilisateurs supplémentaires se créent via l'admin Django (<http://127.0.0.1:8000/admin/>).
+Ouvrir <http://127.0.0.1:8000/> et se connecter.
+
+### Inscription et validation des comptes
+
+L'inscription publique (`/register/`) permet à n'importe qui de créer un compte avec son propre mot de passe, mais un nouvel utilisateur n'a accès à aucune fonctionnalité de l'application tant qu'un administrateur ne l'a pas ajouté au groupe Django **« Utilisateurs actifs »** (créé automatiquement par une migration). Tant qu'il n'est pas dans ce groupe, l'utilisateur connecté voit une page « en attente de validation ».
+
+Pour valider un compte : admin Django (<http://127.0.0.1:8000/admin/>) → *Users* → sélectionner l'utilisateur → l'ajouter au groupe *Utilisateurs actifs*.
 
 ### Recompiler le CSS (si vous modifiez les templates ou le JS)
 
@@ -77,7 +84,8 @@ En production (`DEBUG=false`), les cookies sécurisés et la redirection HTTPS (
 ```
 ├── project/                 # Configuration Django (settings, urls, wsgi)
 ├── abaque/                  # Application principale
-│   ├── views.py             # Vues + DEFAULT_GROUPS (tarifs par défaut)
+│   ├── views.py             # Vues + DEFAULT_GROUPS (tarifs par défaut) + access_required
+│   ├── forms.py             # RegistrationForm (inscription)
 │   ├── models.py            # UserConfiguration, UserSavedJob
 │   ├── urls.py              # Routes de l'app et de l'API
 │   ├── static/js/
@@ -85,8 +93,8 @@ En production (`DEBUG=false`), les cookies sécurisés et la redirection HTTPS (
 │   │   ├── modal.js         # Éditeur d'options + appels API
 │   │   └── table.js         # Tableau des tâches (lignes qty/temps)
 │   ├── templates/abaque/    # Page principale, section de configuration, liste des projets
-│   └── tests.py             # Suite de tests (authentification, API, projets)
-├── templates/               # Gabarits d'authentification (login)
+│   └── tests.py             # Suite de tests (authentification, inscription, API, projets)
+├── templates/               # Gabarits d'authentification (login, inscription, en attente de validation)
 ├── static/css/              # tailwind.css (source) → output.css (compilé)
 └── requirements.txt
 ```

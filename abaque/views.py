@@ -1,3 +1,5 @@
+from functools import wraps
+
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
 from django.contrib.auth import authenticate, login, logout
@@ -5,7 +7,28 @@ from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_protect
 import json
+from .forms import RegistrationForm
 from .models import UserConfiguration, UserSavedJob
+
+
+# Users must belong to this group for an admin to grant them access to the app.
+# New registrations are not added to it automatically.
+ACCESS_GROUP_NAME = "Utilisateurs actifs"
+
+
+def access_required(view_func):
+    """Require login AND membership in ACCESS_GROUP_NAME.
+
+    Logged-in users who haven't been approved by an admin yet see a
+    pending-approval page instead of the protected view.
+    """
+    @wraps(view_func)
+    @login_required
+    def wrapper(request, *args, **kwargs):
+        if not request.user.groups.filter(name=ACCESS_GROUP_NAME).exists():
+            return render(request, "auth/pending_approval.html", status=403)
+        return view_func(request, *args, **kwargs)
+    return wrapper
 
 
 # Default groups (server-side definitions)
@@ -189,7 +212,20 @@ def logout_view(request):
     return redirect("login")
 
 
-@login_required
+def register_view(request):
+    if request.method == "POST":
+        form = RegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)
+            return redirect("abaque:index")
+    else:
+        form = RegistrationForm()
+
+    return render(request, "auth/register.html", {"form": form})
+
+
+@access_required
 def index(request):
     """Main app page with groups"""
     user_configs = {
@@ -234,7 +270,7 @@ def _validate_configurations_payload(data):
     return None
 
 
-@login_required
+@access_required
 @csrf_protect
 @require_http_methods(["GET", "POST"])
 def api_get_configurations(request):
@@ -277,7 +313,7 @@ def api_get_configurations(request):
         return JsonResponse({"error": "Invalid configuration data"}, status=400)
 
 
-@login_required
+@access_required
 @require_http_methods(["GET", "POST"])
 def api_get_saved_jobs(request):
     """Get all user saved jobs or save a new job"""
@@ -305,7 +341,7 @@ def api_get_saved_jobs(request):
     return JsonResponse({"id": job.id, "name": job.name, "created_at": job.created_at.strftime("%Y-%m-%d %H:%M:%S")})
 
 
-@login_required
+@access_required
 @require_http_methods(["POST"])
 def apply_job(request, job_id):
     """Apply a saved job"""
@@ -328,7 +364,7 @@ def apply_job(request, job_id):
     })
 
 
-@login_required
+@access_required
 @require_http_methods(["DELETE"])
 def api_delete_job(request, job_id):
     """Delete a saved job"""

@@ -6,5 +6,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("login/", choice_views.login_view, name="login"),
     path("logout/", choice_views.logout_view, name="logout"),
+    path("register/", choice_views.register_view, name="register"),
     path("", include("abaque.urls")),
 ]

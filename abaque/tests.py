@@ -1,10 +1,17 @@
 import json
 
-from django.contrib.auth.models import User
+from django.contrib.auth.models import Group, User
 from django.test import TestCase
 from django.urls import reverse
 
 from .models import UserConfiguration, UserSavedJob
+from .views import ACCESS_GROUP_NAME
+
+
+def grant_access(user):
+    group, _ = Group.objects.get_or_create(name=ACCESS_GROUP_NAME)
+    user.groups.add(group)
+    return user
 
 
 class AuthRequiredTests(TestCase):
@@ -38,7 +45,7 @@ class AuthRequiredTests(TestCase):
 
 class IndexViewTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="alice", password="pw12345")
+        self.user = grant_access(User.objects.create_user(username="alice", password="pw12345"))
         self.client.force_login(self.user)
 
     def test_index_returns_200_for_logged_in_user(self):
@@ -48,7 +55,7 @@ class IndexViewTests(TestCase):
 
 class ConfigurationsApiTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="bob", password="pw12345")
+        self.user = grant_access(User.objects.create_user(username="bob", password="pw12345"))
         self.client.force_login(self.user)
 
     def test_post_then_get_round_trip(self):
@@ -106,7 +113,7 @@ class ConfigurationsApiTests(TestCase):
 
 class SavedJobsTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username="carol", password="pw12345")
+        self.user = grant_access(User.objects.create_user(username="carol", password="pw12345"))
         self.other_user = User.objects.create_user(username="dave", password="pw12345")
         self.client.force_login(self.user)
 
@@ -162,3 +169,48 @@ class SavedJobsTests(TestCase):
         job = UserSavedJob.objects.create(user=self.other_user, name="Not Yours", state_json={})
         response = self.client.delete(reverse("abaque:api_delete_job", args=[job.id]))
         self.assertEqual(response.status_code, 404)
+
+
+class RegistrationTests(TestCase):
+    def test_register_creates_user_and_logs_in(self):
+        response = self.client.post(reverse("register"), {
+            "username": "newuser",
+            "password1": "S0me-Strong-Pass",
+            "password2": "S0me-Strong-Pass",
+        })
+        self.assertRedirects(response, reverse("abaque:index"), target_status_code=403)
+        self.assertTrue(User.objects.filter(username="newuser").exists())
+
+        user = User.objects.get(username="newuser")
+        self.assertFalse(user.groups.filter(name=ACCESS_GROUP_NAME).exists())
+
+    def test_register_requires_matching_passwords(self):
+        response = self.client.post(reverse("register"), {
+            "username": "newuser2",
+            "password1": "S0me-Strong-Pass",
+            "password2": "does-not-match",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(username="newuser2").exists())
+
+
+class PendingApprovalTests(TestCase):
+    """Logged-in users without ACCESS_GROUP_NAME membership are gated."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(username="eve", password="pw12345")
+        self.client.force_login(self.user)
+
+    def test_index_shows_pending_approval(self):
+        response = self.client.get(reverse("abaque:index"))
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, "pending approval", status_code=403)
+
+    def test_api_configurations_blocked_until_approved(self):
+        response = self.client.get(reverse("abaque:api_configurations"))
+        self.assertEqual(response.status_code, 403)
+
+    def test_index_accessible_once_granted_access(self):
+        grant_access(self.user)
+        response = self.client.get(reverse("abaque:index"))
+        self.assertEqual(response.status_code, 200)
