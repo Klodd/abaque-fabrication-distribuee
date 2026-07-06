@@ -285,9 +285,9 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     return obj;
   }).filter(o => o.name);
 
-  // Save to server
+  // Save to server (only the group being edited)
   configCache[String(modalState.groupId)] = parsed;
-  const success = await saveConfigurations(configCache);
+  const success = await saveConfigurations({ [String(modalState.groupId)]: parsed });
 
   if (success) {
     const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
