@@ -1,6 +1,8 @@
 # 🧮 Abaque de la Fabrication Distribuée
 
 Calculateur de coûts de fabrication pour fablab / atelier partagé. L'application permet d'estimer le prix d'une prestation (impression 3D, découpe laser, CNC, découpe vinyle…) en combinant le coût matière, la location machine, les consommables, le logiciel, le temps humain, la licence et la contribution au projet associatif.
+![Config](screen1.png)
+![Coût calculé](screen2.png)
 
 Chaque utilisateur peut personnaliser les tarifs (machines, matières, consommables…) et sauvegarder ses projets pour les recharger plus tard.
 
