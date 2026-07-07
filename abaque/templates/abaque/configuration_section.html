@@ -1,4 +1,4 @@
-{% load static %}
+{% load static l10n %}
 
 <div class="bg-slate-600 border border-green-500/20 rounded-lg px-4 py-1 transition-all relative">
   <label class="block text-slate-100 font-bold text-xs uppercase tracking-wide mb-1">{{ g.name }}</label>
@@ -13,7 +13,8 @@
         {% for opt in g.options %}
           {% if opt.name %}
             <option value="{{ opt.name }}" {% if forloop.first %}selected{% endif %}
-              {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v }}"{% endif %}{% endfor %}
+              {# unlocalize: French locale would render 0.1 as "0,1", which parseFloat truncates to 0 #}
+              {% for k,v in opt.items %}{% if k != 'name' %} data-{{ k }}="{{ v|unlocalize }}"{% endif %}{% endfor %}
             >{{ opt.name }}</option>
           {% else %}
             <option value="{{ opt }}" {% if forloop.first %}selected{% endif %}>{{ opt }}</option>

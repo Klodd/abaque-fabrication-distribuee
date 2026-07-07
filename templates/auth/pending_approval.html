@@ -7,5 +7,8 @@
     <p class="text-gray-600 mb-6 text-center">
         Votre compte a bien été créé, mais un administrateur doit encore vous donner accès à l'application. Merci de revenir plus tard.
     </p>
-    <a href="{% url 'logout' %}" class="block w-full p-3 bg-indigo-500 text-white font-semibold rounded-md text-center hover:bg-purple-600 transition-colors">Se déconnecter</a>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button type="submit" class="block w-full p-3 bg-indigo-500 text-white font-semibold rounded-md text-center hover:bg-purple-600 transition-colors">Se déconnecter</button>
+    </form>
 {% endblock %}

@@ -9,7 +9,7 @@ Stack: Django 5.2 (plain function views, no DRF — don't introduce it) + HTMX 2
 ## Commands
 
 ```bash
-.venv/bin/python manage.py test        # 22 tests, must stay green
+.venv/bin/python manage.py test        # 31 tests, must stay green
 .venv/bin/python manage.py runserver   # port 8000 is often taken by Docker on this machine; pass another port
 npm run build:css                      # rebuild static/css/output.css (committed) — required after
                                        # adding/removing Tailwind classes in templates OR JS strings

@@ -52,6 +52,13 @@ class IndexViewTests(TestCase):
         response = self.client.get(reverse("abaque:index"))
         self.assertEqual(response.status_code, 200)
 
+    def test_option_decimal_data_attributes_not_localized(self):
+        # The French locale renders 0.1 as "0,1", which parseFloat truncates to 0
+        # in the cost formulas; data attributes must stay unlocalized.
+        response = self.client.get(reverse("abaque:index"))
+        self.assertContains(response, 'data-pourcentage_contribution="0.1"')
+        self.assertNotContains(response, 'data-pourcentage_contribution="0,1"')
+
 
 class ConfigurationsApiTests(TestCase):
     def setUp(self):
@@ -110,6 +117,34 @@ class ConfigurationsApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
 
+    def test_unknown_group_id_rejected(self):
+        payload = {"42": [{"name": "Oui"}]}
+        response = self.client.post(
+            reverse("abaque:api_configurations"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_property_key_with_unsafe_characters_rejected(self):
+        # A key with a space could escape the data- attribute it is rendered into.
+        payload = {"1": [{"name": "Oui", "x onmouseover=alert(1)": "y"}]}
+        response = self.client.post(
+            reverse("abaque:api_configurations"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_accented_property_key_accepted(self):
+        payload = {"2": [{"name": "PLA", "densité": 1.24}]}
+        response = self.client.post(
+            reverse("abaque:api_configurations"),
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+
 
 class SavedJobsTests(TestCase):
     def setUp(self):
@@ -154,6 +189,42 @@ class SavedJobsTests(TestCase):
         self.assertIsInstance(data["state"], dict)
         self.assertEqual(data["state"], state)
 
+    def test_long_name_truncated_and_empty_name_gets_default(self):
+        response = self.client.post(
+            reverse("abaque:api_get_saved_jobs"),
+            data={"name": "x" * 300, "state": "{}"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["name"]), 255)
+
+        response = self.client.post(
+            reverse("abaque:api_get_saved_jobs"),
+            data={"name": "   ", "state": "{}"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["name"], "Projet sans nom")
+
+    def test_oversized_state_rejected(self):
+        big_state = json.dumps({"choices": {}, "rows": ["x" * (300 * 1024)]})
+        response = self.client.post(
+            reverse("abaque:api_get_saved_jobs"),
+            data={"name": "Big", "state": big_state},
+        )
+        self.assertEqual(response.status_code, 400)
+
+    def test_job_count_cap_enforced(self):
+        from .views import MAX_SAVED_JOBS_PER_USER
+
+        UserSavedJob.objects.bulk_create([
+            UserSavedJob(user=self.user, name=f"Job {i}", state_json={})
+            for i in range(MAX_SAVED_JOBS_PER_USER)
+        ])
+        response = self.client.post(
+            reverse("abaque:api_get_saved_jobs"),
+            data={"name": "One too many", "state": "{}"},
+        )
+        self.assertEqual(response.status_code, 400)
+
     def test_delete_job_works(self):
         job = UserSavedJob.objects.create(user=self.user, name="To Delete", state_json={})
         response = self.client.delete(reverse("abaque:api_delete_job", args=[job.id]))
@@ -192,6 +263,20 @@ class RegistrationTests(TestCase):
         })
         self.assertEqual(response.status_code, 200)
         self.assertFalse(User.objects.filter(username="newuser2").exists())
+
+
+class LogoutTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="frank", password="pw12345")
+        self.client.force_login(self.user)
+
+    def test_logout_requires_post(self):
+        response = self.client.get(reverse("logout"))
+        self.assertEqual(response.status_code, 405)
+
+    def test_logout_via_post_works(self):
+        response = self.client.post(reverse("logout"))
+        self.assertRedirects(response, reverse("login"))
 
 
 class PendingApprovalTests(TestCase):

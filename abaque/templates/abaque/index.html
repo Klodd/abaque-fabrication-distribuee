@@ -7,8 +7,11 @@
     <div class="flex justify-between items-center max-w-350 mx-auto">
       <h1 class="text-xl font-bold text-slate-200 m-0">🧮 Abaque de la Fabrication Distribuée</h1>
       <div class="flex items-center gap-4">
-        <span class="text-slate-400 text-sm">Logged in as: <strong class="text-slate-200">{{ user.username }}</strong></span>
-        <a href="/logout/" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-all border border-blue-600 hover:shadow-md hover:shadow-blue-500/30">Logout</a>
+        <span class="text-slate-400 text-sm">Connecté en tant que <strong class="text-slate-200">{{ user.username }}</strong></span>
+        <form method="post" action="{% url 'logout' %}">
+          {% csrf_token %}
+          <button type="submit" class="px-3 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-all border border-blue-600 hover:shadow-md hover:shadow-blue-500/30">Déconnexion</button>
+        </form>
       </div>
     </div>
   </div>

@@ -163,10 +163,16 @@ function removePropertyKey(key) {
   renderModal(current, modalState.keys, form);
 }
 
+// Mirrors PROPERTY_KEY_RE in views.py: letters/digits/underscore/hyphen only,
+// so a key can never break out of the data- attribute it is rendered into.
+const PROPERTY_KEY_RE = /^[\p{L}\p{N}_-]+$/u;
+const PROPERTY_KEY_ERROR = "Nom de propriété invalide : lettres, chiffres, tirets et tirets bas uniquement (pas d'espaces)";
+
 function renamePropertyKey(oldKey, newValue) {
   const newKey = (newValue || '').trim();
   const form = document.querySelector(`.choice-form[data-group-id="${modalState.groupId}"]`);
   if (!newKey) return alert('Nom de la propriété');
+  if (!PROPERTY_KEY_RE.test(newKey)) return alert(PROPERTY_KEY_ERROR);
   if (newKey !== oldKey && modalState.keys.includes(newKey)) return alert('Cette propriété existe déjà');
 
   const current = collectModalRows();
@@ -229,6 +235,7 @@ function buildAddPropertyControl(form) {
 function confirmAddProperty(value, form) {
   const v = (value || '').trim();
   if (!v) return alert('Nom de la propriété');
+  if (!PROPERTY_KEY_RE.test(v)) return alert(PROPERTY_KEY_ERROR);
   if (modalState.keys.includes(v)) return alert('Cette propriété existe déjà');
   modalState.keys.push(v);
   modalState.addingProperty = false;
@@ -263,9 +270,12 @@ function unionKeysGeneric(opts) {
 }
 
 function tryParseNumber(v) {
-  if (v === undefined) return v;
-  const n = parseFloat(v);
-  return isNaN(n) ? v : n;
+  if (typeof v !== 'string') return v;
+  const s = v.trim();
+  // Accept French decimal commas ("12,5"), and only convert strings that are
+  // entirely numeric — parseFloat alone would mangle "12,5" into 12.
+  if (/^-?\d+(?:[.,]\d+)?$/.test(s)) return parseFloat(s.replace(',', '.'));
+  return v;
 }
 
 document.getElementById('modal-cancel').addEventListener('click', () => {
@@ -295,12 +305,17 @@ document.getElementById('modal-save').addEventListener('click', async () => {
     populateSelectFromOptions(form, parsed);
     // Restore the previously selected value
     const select = form.querySelector('select[name="value"]');
-    if (select && currentValue) {
-      select.value = currentValue;
+    if (select) {
+      if (currentValue) select.value = currentValue;
+      // If the previously selected option was renamed or removed, fall back to
+      // the placeholder instead of leaving the select with no selection at all.
+      if (select.selectedIndex === -1) select.selectedIndex = 0;
+      // Refresh the details table and cost summary with the edited values.
+      select.dispatchEvent(new Event('change', { bubbles: true }));
     }
     closeModal();
   } else {
-    alert('Error saving options');
+    alert("Erreur lors de l'enregistrement des options");
   }
 });
 
@@ -387,7 +402,7 @@ function populateSelectFromOptions(form, opts) {
   sel.innerHTML = '';
   const optPlaceholder = document.createElement('option');
   optPlaceholder.value = '';
-  optPlaceholder.textContent = '-- choose --';
+  optPlaceholder.textContent = '-- choisir --';
   sel.appendChild(optPlaceholder);
   (opts || []).forEach(o => {
     const el = document.createElement('option');

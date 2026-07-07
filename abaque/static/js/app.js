@@ -21,6 +21,13 @@ function getChoiceFormByGroupId(gid) {
   return document.querySelector(`.choice-form[data-group-id="${gid}"]`);
 }
 
+// The select may have no selection (selectedIndex -1) right after its options
+// were rebuilt and the previous value no longer exists — never assume [0].
+function getSelectedOption(form) {
+  const sel = form ? form.querySelector('select[name="value"]') : null;
+  return sel && sel.selectedOptions.length ? sel.selectedOptions[0] : null;
+}
+
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\"/g, '&quot;');
 }
@@ -84,8 +91,9 @@ function updateSummary() {
   const qtyValues = Array.from(document.querySelectorAll('.col-qty')).map(i => parseFloat(i.value) || 0);
   const totalQty = qtyValues.reduce((a, b) => a + b, 0);
 
-  const materialPrice = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix : 0;
-  const materialName = materialForm ? materialForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
+  const materialOpt = getSelectedOption(materialForm);
+  const materialPrice = materialOpt ? materialOpt.dataset.prix : 0;
+  const materialName = materialOpt ? materialOpt.textContent : '';
 
   const materialCost = (totalQty * materialPrice).toFixed(2);
   document.getElementById('total-material').textContent = totalQty;
@@ -104,8 +112,9 @@ function updateSummary() {
   document.getElementById('total-additional-time').textContent = parseFloat(totalAdditionalTime).toFixed(0);
 
   // Get operator time percentage for machine
-  const machinePercentTimeForOperator = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcent_temps || 0 : 0;
-  const machineName = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].textContent : '';
+  const machineOpt = getSelectedOption(machineForm);
+  const machinePercentTimeForOperator = machineOpt ? machineOpt.dataset.pourcent_temps || 0 : 0;
+  const machineName = machineOpt ? machineOpt.textContent : '';
 
   // Total operator time = (tps * pourcent_temps / 100) + additional time
   const finalOperatorTime = (parseFloat(totalTps * machinePercentTimeForOperator / 100) + parseFloat(totalAdditionalTime)).toFixed(2);
@@ -114,9 +123,9 @@ function updateSummary() {
   document.getElementById('total-operator-time').textContent = parseFloat(finalOperatorTime).toFixed(0);
 
   // Calculate machine cost if machine has prix and totalTps
-  const machinePriceNormal = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_normal : 1;
-  const machinePriceAdherent = machineForm ? machineForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_adherent : 1;
-  const adherentSelected = adherentForm ? adherentForm.querySelector('select[name="value"]').selectedOptions[0] : null;
+  const machinePriceNormal = machineOpt ? machineOpt.dataset.prix_normal : 1;
+  const machinePriceAdherent = machineOpt ? machineOpt.dataset.prix_adherent : 1;
+  const adherentSelected = getSelectedOption(adherentForm);
   const is_adherent = adherentSelected ? adherentSelected.value == "Oui" : false;
   const machinePrice = is_adherent ? machinePriceAdherent : machinePriceNormal;
   // machinePrice is €/hour, totalTps is in minutes, so convert to hours
@@ -127,8 +136,9 @@ function updateSummary() {
 //   document.getElementById('cost-summary-is-adherent').textContent = is_adherent ? "(Tarif adhérent)" : "";
 
   // Calculate consommable cost
-  const consumablePrice = consumableForm ? consumableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
-  const consumableLifetime = consumableForm ? consumableForm.querySelector('select[name="value"]').selectedOptions[0].dataset.duree_vie_totale_minutes || 0 : 0;
+  const consumableOpt = getSelectedOption(consumableForm);
+  const consumablePrice = consumableOpt ? consumableOpt.dataset.prix || 0 : 0;
+  const consumableLifetime = consumableOpt ? consumableOpt.dataset.duree_vie_totale_minutes || 0 : 0;
 
   const consumableLifetimeNum = parseFloat(consumableLifetime) || 0;
   const consumableCost = consumableLifetimeNum > 0 ? (totalTps * consumablePrice / consumableLifetimeNum).toFixed(2) : '0.00';
@@ -136,28 +146,37 @@ function updateSummary() {
   document.getElementById('cost-summary-consumable-cost').textContent = consumableCost;
   document.getElementById('cost-summary-consumable-per-min').textContent = consumableCostPerMin;
 
-  const softwareMonthlyPrice = softwareForm ? softwareForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix_mensuel || 0 : 0;
+  const softwareOpt = getSelectedOption(softwareForm);
+  const softwareMonthlyPrice = softwareOpt ? softwareOpt.dataset.prix_mensuel || 0 : 0;
   const softwareCost = (softwareMonthlyPrice * (totalTps / (30 * 24 * 60))).toFixed(2);
   const softwareCostPerMin = (softwareMonthlyPrice / (30 * 24 * 60)).toFixed(2);
   document.getElementById('cost-summary-software-cost-per-min').textContent = softwareCostPerMin;
   document.getElementById('cost-summary-software-cost').textContent = softwareCost;
 
-  const humanHourlyPrice = prestationForm ? prestationForm.querySelector('select[name="value"]').selectedOptions[0].dataset.taux_horaire || 0 : 0;
+  const prestationOpt = getSelectedOption(prestationForm);
+  const humanHourlyPrice = prestationOpt ? prestationOpt.dataset.taux_horaire || 0 : 0;
   document.getElementById('cost-summary-human-hourly-price').textContent = parseFloat(humanHourlyPrice).toFixed(0);
-  const humanCost = (humanHourlyPrice * totalTps / 60).toFixed(2);
+  // Human cost is billed on operator time (pourcent_temps share of machine time
+  // + additional operator time), not raw machine time. Both are minutes.
+  const humanCost = (humanHourlyPrice * finalOperatorTime / 60).toFixed(2);
   document.getElementById('cost-summary-human-cost').textContent = humanCost;
 
-  const licenseCost = licenseForm ? licenseForm.querySelector('select[name="value"]').selectedOptions[0].dataset.prix || 0 : 0;
+  const licenseOpt = getSelectedOption(licenseForm);
+  const licenseCost = licenseOpt ? licenseOpt.dataset.prix || 0 : 0;
   document.getElementById('cost-summary-license-cost').textContent = licenseCost;
-  document.getElementById('cost-summary-license-name').textContent = licenseForm ? licenseForm.querySelector('select[name="value"]').selectedOptions[0].value : '';
+  document.getElementById('cost-summary-license-name').textContent = licenseOpt ? licenseOpt.value : '';
 
   const grossCost = (parseFloat(materialCost) + parseFloat(machineCost) + parseFloat(consumableCost) + parseFloat(softwareCost) + parseFloat(humanCost) + parseFloat(licenseCost)).toFixed(2);
 
-  const majorationRate = majorationForm ? majorationForm.querySelector('select[name="value"]').selectedOptions[0].dataset.majoration_coef || 0 : 0;
+  const majorationOpt = getSelectedOption(majorationForm);
+  // The coefficient is multiplicative: 1 (not 0) is the neutral fallback,
+  // otherwise a missing value would erase the human cost from the final total.
+  const majorationRate = majorationOpt ? majorationOpt.dataset.majoration_coef || 1 : 1;
   document.getElementById('cost-summary-majoration-cost').textContent = (parseFloat(majorationRate) * parseFloat(humanCost)).toFixed(2);
 //   document.getElementById('cost-summary-before-majoration-human-cost').textContent = humanCost;
 
-  const additionalContribution = contribitionForm ? contribitionForm.querySelector('select[name="value"]').selectedOptions[0].dataset.pourcentage_contribution || 0 : 0;
+  const contributionOpt = getSelectedOption(contribitionForm);
+  const additionalContribution = contributionOpt ? contributionOpt.dataset.pourcentage_contribution || 0 : 0;
   document.getElementById('cost-summary-asso-contribution').textContent = (parseFloat(additionalContribution) * parseFloat(grossCost)).toFixed(2);
 
   // FINAL COST

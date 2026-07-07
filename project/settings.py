@@ -1,10 +1,15 @@
 import os
 from pathlib import Path
 
+from django.core.exceptions import ImproperlyConfigured
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key")
 DEBUG = os.environ.get("DEBUG", "true").lower() in ("true", "1", "yes")
+
+SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key" if DEBUG else "")
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY environment variable is required when DEBUG is false")
 
 if "ALLOWED_HOSTS" in os.environ:
     ALLOWED_HOSTS = [h.strip() for h in os.environ["ALLOWED_HOSTS"].split(",") if h.strip()]
@@ -16,6 +21,9 @@ else:
 LOGIN_URL = "/login/"
 
 LANGUAGE_CODE = "fr"
+
+TIME_ZONE = "Europe/Paris"
+USE_TZ = True
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
@@ -36,6 +44,14 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "django.middleware.clickjacking.XFrameOptionsMiddleware",
+]
+
+AUTH_PASSWORD_VALIDATORS = [
+    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
+    {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
+    {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
 if not DEBUG:

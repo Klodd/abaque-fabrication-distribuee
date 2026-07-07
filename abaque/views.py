@@ -1,3 +1,4 @@
+import re
 from functools import wraps
 
 from django.shortcuts import render, redirect
@@ -190,6 +191,15 @@ del _group
 
 MAX_CONFIGURATIONS_BODY_BYTES = 256 * 1024
 MAX_OPTIONS_PER_GROUP = 200
+MAX_SAVED_JOB_STATE_BYTES = 256 * 1024
+MAX_SAVED_JOBS_PER_USER = 200
+
+KNOWN_GROUP_IDS = {g["id"] for g in DEFAULT_GROUPS}
+
+# Option property keys end up as data-<key> attribute names in templates and as
+# el.dataset[key] in JS; anything beyond letters/digits/_/- (e.g. spaces or
+# quotes) could break out of the attribute and inject arbitrary markup.
+PROPERTY_KEY_RE = re.compile(r"[\w-]+")
 
 
 def login_view(request):
@@ -207,6 +217,9 @@ def login_view(request):
     return render(request, "auth/login.html")
 
 
+# POST-only: logging someone out via a crafted GET link is a CSRF vector
+# (Django's own LogoutView dropped GET support in 5.0 for the same reason).
+@require_http_methods(["POST"])
 def logout_view(request):
     logout(request)
     return redirect("login")
@@ -250,9 +263,12 @@ def _validate_configurations_payload(data):
 
     for group_id, options in data.items():
         try:
-            int(group_id)
+            group_id = int(group_id)
         except (TypeError, ValueError):
             return "Invalid payload: group id must be an integer"
+
+        if group_id not in KNOWN_GROUP_IDS:
+            return "Invalid payload: unknown group id"
 
         if not isinstance(options, list):
             return "Invalid payload: options must be a list"
@@ -266,6 +282,9 @@ def _validate_configurations_payload(data):
             name = option.get("name")
             if not isinstance(name, str) or not name.strip():
                 return "Invalid payload: each option requires a non-empty name"
+            for key in option:
+                if key != "name" and not PROPERTY_KEY_RE.fullmatch(key):
+                    return "Invalid payload: invalid property name"
 
     return None
 
@@ -322,8 +341,15 @@ def api_get_saved_jobs(request):
         return render(request, "abaque/saved_jobs_list.html", {"jobs": jobs})
 
     # POST: Save a new job
-    name = request.POST.get("name", "Unnamed Job")
+    # SQLite does not enforce max_length, so truncate explicitly.
+    name = (request.POST.get("name") or "").strip()[:255] or "Projet sans nom"
     state_raw = request.POST.get("state", "{}")
+
+    if len(state_raw) > MAX_SAVED_JOB_STATE_BYTES:
+        return JsonResponse({"error": "State too large"}, status=400)
+
+    if UserSavedJob.objects.filter(user=request.user).count() >= MAX_SAVED_JOBS_PER_USER:
+        return JsonResponse({"error": "Too many saved jobs"}, status=400)
 
     try:
         state_json = json.loads(state_raw)
