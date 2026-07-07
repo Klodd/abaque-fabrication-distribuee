@@ -11,8 +11,9 @@ Stack: Django 5.2 (plain function views, no DRF — don't introduce it) + HTMX 2
 ```bash
 .venv/bin/python manage.py test        # 31 tests, must stay green
 .venv/bin/python manage.py runserver   # port 8000 is often taken by Docker on this machine; pass another port
-npm run build:css                      # rebuild static/css/output.css (committed) — required after
-                                       # adding/removing Tailwind classes in templates OR JS strings
+npm run build:css                      # rebuild static/css/output.css (committed) from assets/tailwind.css —
+                                       # required after adding/removing Tailwind classes in templates OR JS strings
+
 ```
 
 - There is no JS build step: the three files in `abaque/static/js/` are served as-is.
@@ -50,4 +51,6 @@ Hard rules, each learned from a real bug:
 
 ## Settings
 
-`SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` come from environment variables (dev defaults in `project/settings.py`). Production flags (secure cookies, `SECURE_SSL_REDIRECT`) switch on automatically when `DEBUG=false`. Don't hardcode secrets.
+`SECRET_KEY`, `DEBUG`, `ALLOWED_HOSTS` come from environment variables (dev defaults in `project/settings.py`; `SECRET_KEY` is mandatory when `DEBUG=false`). Production flags (secure cookies, `SECURE_SSL_REDIRECT`, proxy SSL header) switch on automatically when `DEBUG=false`. Don't hardcode secrets.
+
+Deployment (VPS, gunicorn on 127.0.0.1:8642 behind nginx, WhiteNoise for statics, SQLite): see `DEPLOY.md`. The Tailwind *source* lives in `assets/tailwind.css`, outside `static/`, because collectstatic's manifest storage would choke on its `@import "tailwindcss"` line — don't move it back.

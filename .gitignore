@@ -3,6 +3,7 @@
 *.log
 __pycache__/
 db.sqlite3
+staticfiles/
 
 # Ignore media files (if you have a media directory for user uploads)
 media/
